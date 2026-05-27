@@ -1,0 +1,49 @@
+# Environment
+.venv/
+.env
+
+# Data — documents and databases stay local, never in version control
+data/documents/
+data/db/
+data/processed/
+data/benchmarks/*.csv
+data/benchmarks/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Models (too large for git)
+*.gguf
+*.bin
+*.safetensors
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Vite build output (derived from ui/web/src — run `npm run build` to regenerate)
+src/api/static/assets/
+src/api/static/index.html
+
+# Node
+ui/web/node_modules/

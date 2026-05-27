@@ -1,0 +1,60 @@
+# ── Core inference client ──────────────────────────────────────────────────────
+ollama>=0.4.0
+openai>=1.50.0                  # DeepSeek API (OpenAI-compatible endpoint)
+
+# ── Document parsing ───────────────────────────────────────────────────────────
+docling>=2.0.0                  # PDF, DOCX, images-in-PDF (IBM)
+python-docx>=1.1.0              # DOCX parsing
+markdown>=3.7                   # MD parsing
+Pillow>=11.0.0                  # Image handling for standalone images
+
+# ── Vector store & sparse retrieval ───────────────────────────────────────────
+lancedb>=0.14.0                 # Embedded vector store (no server)
+rank-bm25>=0.2.2                # BM25 sparse retrieval
+
+# ── Reranker ───────────────────────────────────────────────────────────────────
+sentence-transformers>=3.3.0    # Cross-encoder reranker (ms-marco-MiniLM-L6-v2)
+torch>=2.5.0                    # Required by sentence-transformers (CPU build fine)
+
+# ── NLP & GraphRAG ────────────────────────────────────────────────────────────
+spacy>=3.8.0                    # NER for entity extraction
+# After install run: python -m spacy download en_core_web_sm
+networkx>=3.4.0                 # In-memory knowledge graph
+pyvis>=0.3.2                    # Interactive graph visualisation
+
+# ── LlamaIndex orchestration ──────────────────────────────────────────────────
+llama-index-core>=0.12.0
+llama-index-llms-ollama>=0.5.0
+llama-index-embeddings-ollama>=0.5.0
+llama-index-vector-stores-lancedb>=0.4.0
+
+# ── Memory ─────────────────────────────────────────────────────────────────────
+mem0ai>=0.1.0                   # Episodic memory with local SQLite backend
+
+# ── Evaluation ─────────────────────────────────────────────────────────────────
+ragas>=0.2.0                    # RAG faithfulness + relevance scoring
+
+# ── Web API ────────────────────────────────────────────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12        # File upload support
+
+# ── UI (legacy Streamlit — kept for quick testing) ──────────────────────────
+streamlit>=1.40.0
+plotly>=5.24.0                  # Benchmark charts
+pandas>=2.2.0                   # Benchmark result tables
+
+# ── File watching & ingestion ──────────────────────────────────────────────────
+watchdog>=5.0.0                 # Folder monitoring for auto-ingestion
+
+# ── MCP server ─────────────────────────────────────────────────────────────────
+mcp>=1.0.0                      # MCP Python SDK for Claude Desktop integration
+
+# ── Utilities ──────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0            # .env loading
+pydantic>=2.10.0                # Data validation (also a transitive dep)
+httpx>=0.27.0                   # Async HTTP client
+tqdm>=4.67.0                    # Progress bars for benchmarking
+loguru>=0.7.0                   # Structured logging
+psutil>=6.0.0                   # RAM + CPU metrics for benchmarking
+pyyaml>=6.0.2                   # models.yaml config loading
