@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.api.routes import chat, documents, system
+from src.api.routes import chat, documents, system, benchmark
 
 app = FastAPI(title="Local AI Assistant", version="1.0.0")
 
@@ -35,6 +35,7 @@ app.add_middleware(
 app.include_router(chat.router,      prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(system.router,    prefix="/api")
+app.include_router(benchmark.router, prefix="/api")
 
 # Serve the Vite production build (after `npm run build`)
 _static = Path(__file__).parent / "static"

@@ -36,3 +36,19 @@ export type SSEEvent =
   | { type: 'sources'; sources: Source[] }
   | { type: 'done'; ttft?: number; tgs?: number; route?: string; model?: string }
   | { type: 'error'; message: string }
+
+export type BenchmarkSSEEvent =
+  | { type: 'log'; text: string }
+  | { type: 'done'; error: string; results_dir: string; completed_models: number; total_models: number }
+
+export interface BenchmarkStatus {
+  running: boolean
+  completed: boolean
+  current_suite: string
+  current_model: string
+  completed_models: number
+  total_models: number
+  error: string
+  results_dir: string
+  elapsed_s: number
+}

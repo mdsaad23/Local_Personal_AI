@@ -4,12 +4,14 @@ import type { Session, Message } from './types'
 import Sidebar from './components/Sidebar'
 import ChatWindow from './components/ChatWindow'
 import DocumentPanel from './components/DocumentPanel'
+import BenchmarkPanel from './components/BenchmarkPanel'
 
 export default function App() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [showDocs, setShowDocs] = useState(false)
+  const [showBenchmark, setShowBenchmark] = useState(false)
   const [loadingChats, setLoadingChats] = useState(true)
 
   const refreshSessions = useCallback(async () => {
@@ -28,6 +30,7 @@ export default function App() {
   const selectChat = useCallback(async (id: string) => {
     setActiveId(id)
     setShowDocs(false)
+    setShowBenchmark(false)
     try {
       const msgs = await api.getMessages(id)
       setMessages(msgs)
@@ -83,12 +86,15 @@ export default function App() {
         onSelect={selectChat}
         onNew={newChat}
         onDelete={deleteChat}
-        onShowDocs={() => { setShowDocs(true); setActiveId(null) }}
+        onShowDocs={() => { setShowDocs(true); setShowBenchmark(false); setActiveId(null) }}
+        onShowBenchmark={() => { setShowBenchmark(true); setShowDocs(false); setActiveId(null) }}
       />
 
       <main className="flex-1 flex flex-col min-w-0">
         {showDocs ? (
           <DocumentPanel onClose={() => setShowDocs(false)} />
+        ) : showBenchmark ? (
+          <BenchmarkPanel onClose={() => setShowBenchmark(false)} />
         ) : (
           <ChatWindow
             sessionId={activeId}

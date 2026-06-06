@@ -1,4 +1,4 @@
-import { MessageSquare, Plus, Trash2, FileText, Clock } from 'lucide-react'
+import { MessageSquare, Plus, Trash2, FileText, Clock, FlaskConical } from 'lucide-react'
 import type { Session } from '../types'
 
 interface Props {
@@ -9,6 +9,7 @@ interface Props {
   onNew: () => void
   onDelete: (id: string) => void
   onShowDocs: () => void
+  onShowBenchmark: () => void
 }
 
 function formatTime(ts: number | null): string {
@@ -22,7 +23,7 @@ function formatTime(ts: number | null): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-export default function Sidebar({ sessions, activeId, loading, onSelect, onNew, onDelete, onShowDocs }: Props) {
+export default function Sidebar({ sessions, activeId, loading, onSelect, onNew, onDelete, onShowDocs, onShowBenchmark }: Props) {
   return (
     <aside className="w-64 flex flex-col bg-slate-900 border-r border-slate-800 shrink-0">
       {/* Header */}
@@ -87,13 +88,20 @@ export default function Sidebar({ sessions, activeId, loading, onSelect, onNew, 
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-slate-800">
+      <div className="p-3 border-t border-slate-800 space-y-1">
         <button
           onClick={onShowDocs}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-sm transition-colors"
         >
           <FileText size={15} />
           Documents
+        </button>
+        <button
+          onClick={onShowBenchmark}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-sm transition-colors"
+        >
+          <FlaskConical size={15} />
+          Test all models
         </button>
       </div>
     </aside>
