@@ -92,6 +92,29 @@ cd ui\web; npm run build
 # the app is now available at http://localhost:8000
 ```
 
+### Subsequent Runs (app already set up)
+
+Once you've done the initial setup above, restarting the app is quick:
+
+```powershell
+# 1. Activate the venv
+.venv\Scripts\activate
+
+# 2. Start Ollama (with GPU — do this first, it takes a few seconds to warm up)
+.\scripts\start_ollama.ps1
+
+# 3. Start FastAPI backend in one terminal
+.\scripts\start_api.ps1
+
+# 4. Start React dev server in another terminal
+cd ui\web
+npm run dev
+```
+
+Open **http://localhost:5173** in your browser. The backend will automatically reload your knowledge base (LanceDB, BM25, graph) and memory from disk.
+
+**Quick check:** Ollama should print "Listening on 127.0.0.1:11434" (or your `OLLAMA_HOST` setting). FastAPI should print "Application startup complete" with the port (default 8000). If you see either stuck or not printing, check `config/settings.py` for port conflicts.
+
 ### 6. (Optional) MCP server for Claude Desktop
 Expose the knowledge base as tools inside Claude Desktop. Add to
 `%APPDATA%\Claude\claude_desktop_config.json`:
