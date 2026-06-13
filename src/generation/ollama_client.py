@@ -1,16 +1,16 @@
 """
-Ollama wrapper with streaming, TTFT/TGS measurement, and context management.
+Ollama wrapper with async streaming, TTFT/TGS measurement, and context management.
 
 All timing uses time.perf_counter() as per project convention.
 TTFT = time to first token (measured at first streamed chunk).
 TGS  = token generation speed = eval_count / eval_duration (from final chunk).
-TTLC = time to last completion = total wall time from request to last token.
 """
 from __future__ import annotations
 
+import json
 import logging
 import time
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from typing import Any
 
 import httpx
@@ -27,29 +27,19 @@ logger = logging.getLogger(__name__)
 _GENERATE_URL = f"{OLLAMA_BASE_URL}/api/chat"
 
 
-def stream_response(
+async def stream_response(
     messages: list[dict[str, str]],
     model: str = PRODUCTION_MODEL,
     *,
     think: bool = False,
     image_b64: str | None = None,
-) -> Generator[str, None, dict[str, Any]]:
+) -> AsyncGenerator[tuple[str, dict[str, Any]], None]:
     """
-    Stream a chat response. Yields text tokens as they arrive.
-    On completion, the generator return value contains timing metrics
-    (access via StopIteration.value or send protocol).
+    Async generator that streams chat tokens from Ollama.
+    Yields (token, {}) for each token, then ("", metrics_dict) as the final item.
 
-    Args:
-        messages: OpenAI-format message list [{role, content}, ...]
-        model: Ollama model ID
-        think: Enable Qwen 3 thinking mode for complex reasoning queries
-        image_b64: Base64-encoded image to attach to the last user message
-
-    Yields:
-        str — each streamed text token
-
-    Returns (via StopIteration.value):
-        dict with keys: ttft_s, tgs, ttlc_s, eval_count, prompt_eval_count
+    Using httpx.AsyncClient keeps the event loop free during streaming —
+    synchronous httpx.stream blocked the entire server.
     """
     options: dict[str, Any] = {
         "num_ctx": CONTEXT_LENGTH,
@@ -58,7 +48,6 @@ def stream_response(
     if think:
         options["think"] = True
 
-    # Attach image to the last user message if provided
     messages_out = [dict(m) for m in messages]
     if image_b64:
         for msg in reversed(messages_out):
@@ -84,32 +73,25 @@ def stream_response(
     t_start = time.perf_counter()
     first_token = True
 
-    try:
-        with httpx.stream(
-            "POST",
-            _GENERATE_URL,
-            json=payload,
-            timeout=300,
-        ) as resp:
+    async with httpx.AsyncClient(timeout=300) as client:
+        async with client.stream("POST", _GENERATE_URL, json=payload) as resp:
             resp.raise_for_status()
-            for line in resp.iter_lines():
+            async for line in resp.aiter_lines():
                 if not line:
                     continue
-                import json
                 try:
                     chunk = json.loads(line)
                 except Exception:
                     continue
 
-                msg = chunk.get("message", {})
-                token = msg.get("content", "")
+                token = chunk.get("message", {}).get("content", "")
 
                 if token and first_token:
                     metrics["ttft_s"] = time.perf_counter() - t_start
                     first_token = False
 
                 if token:
-                    yield token
+                    yield token, {}
 
                 if chunk.get("done"):
                     metrics["ttlc_s"] = time.perf_counter() - t_start
@@ -119,16 +101,8 @@ def stream_response(
                     metrics["prompt_eval_count"] = chunk.get("prompt_eval_count", 0)
                     if eval_duration_ns > 0:
                         metrics["tgs"] = eval_count / (eval_duration_ns / 1e9)
-                    break
-
-    except httpx.HTTPStatusError as e:
-        logger.error("Ollama HTTP error: %s — %s", e.response.status_code, e.response.text[:200])
-        raise
-    except Exception:
-        logger.exception("Ollama stream failed")
-        raise
-
-    return metrics
+                    yield "", metrics
+                    return
 
 
 def generate_sync(

@@ -7,7 +7,22 @@ interface Props {
   onClose: () => void
 }
 
-type UploadState = { status: 'idle' } | { status: 'uploading'; name: string } | { status: 'done'; name: string; chunks: number } | { status: 'error'; message: string }
+type UploadState =
+  | { status: 'idle' }
+  | { status: 'uploading'; name: string }
+  | { status: 'ingesting'; name: string; stage: string }
+  | { status: 'done'; name: string }
+  | { status: 'error'; message: string }
+
+const STAGE_LABELS: Record<string, string> = {
+  queued:         'Queued…',
+  parsing:        'Parsing document…',
+  chunking:       'Splitting into chunks…',
+  embedding:      'Generating embeddings…',
+  storing:        'Storing in vector DB…',
+  building_graph: 'Building knowledge graph…',
+  complete:       'Done',
+}
 
 export default function DocumentPanel({ onClose }: Props) {
   const [docs, setDocs] = useState<Document[]>([])
@@ -15,32 +30,57 @@ export default function DocumentPanel({ onClose }: Props) {
   const [uploadState, setUploadState] = useState<UploadState>({ status: 'idle' })
   const [deleting, setDeleting] = useState<Set<string>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const refresh = useCallback(async () => {
     try {
       const list = await api.listDocuments()
       setDocs(list)
-    } catch {
-      // server may not be up yet
-    }
+    } catch { /* server may not be up yet */ }
   }, [])
 
   useEffect(() => {
     refresh().finally(() => setLoading(false))
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [refresh])
+
+  const pollStatus = useCallback((docId: string, name: string) => {
+    if (pollRef.current) clearInterval(pollRef.current)
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/documents/status/${encodeURIComponent(docId)}`)
+        const data = await res.json()
+        const stage: string = data.status || 'unknown'
+
+        if (stage === 'complete') {
+          clearInterval(pollRef.current!)
+          setUploadState({ status: 'done', name })
+          await refresh()
+          setTimeout(() => setUploadState({ status: 'idle' }), 3000)
+        } else if (stage.startsWith('error')) {
+          clearInterval(pollRef.current!)
+          setUploadState({ status: 'error', message: stage })
+        } else {
+          setUploadState({ status: 'ingesting', name, stage })
+        }
+      } catch { /* server busy, retry */ }
+    }, 1500)
   }, [refresh])
 
   const handleUpload = useCallback(async (file: File) => {
     setUploadState({ status: 'uploading', name: file.name })
     try {
       const result = await api.uploadDocument(file)
-      setUploadState({ status: 'done', name: file.name, chunks: result.chunks })
-      await refresh()
-      setTimeout(() => setUploadState({ status: 'idle' }), 3000)
+      // Server returns immediately with status='ingesting'
+      const docId = (result as any).doc_id || file.name
+      setUploadState({ status: 'ingesting', name: file.name, stage: 'queued' })
+      pollStatus(docId, file.name)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Upload failed'
       setUploadState({ status: 'error', message: msg })
     }
-  }, [refresh])
+  }, [pollStatus])
 
   const handleDelete = useCallback(async (docId: string) => {
     setDeleting(prev => new Set(prev).add(docId))
@@ -62,7 +102,6 @@ export default function DocumentPanel({ onClose }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
         <h2 className="font-semibold text-slate-100">Documents</h2>
         <button
@@ -93,23 +132,37 @@ export default function DocumentPanel({ onClose }: Props) {
           <p className="text-slate-600 text-xs mt-1">PDF · DOCX · MD · TXT · Images</p>
         </div>
 
-        {/* Upload status */}
+        {/* Upload / ingestion status */}
         {uploadState.status !== 'idle' && (
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm ${
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm border ${
             uploadState.status === 'error'
-              ? 'bg-red-900/30 border border-red-700/50 text-red-300'
+              ? 'bg-red-900/30 border-red-700/50 text-red-300'
               : uploadState.status === 'done'
-              ? 'bg-green-900/30 border border-green-700/50 text-green-300'
-              : 'bg-slate-800 border border-slate-700 text-slate-300'
+              ? 'bg-green-900/30 border-green-700/50 text-green-300'
+              : 'bg-slate-800 border-slate-700 text-slate-300'
           }`}>
-            {uploadState.status === 'uploading' && <Loader size={16} className="animate-spin shrink-0" />}
+            {(uploadState.status === 'uploading' || uploadState.status === 'ingesting') &&
+              <Loader size={16} className="animate-spin shrink-0" />}
             {uploadState.status === 'done' && <CheckCircle size={16} className="shrink-0" />}
             {uploadState.status === 'error' && <AlertCircle size={16} className="shrink-0" />}
-            <span>
-              {uploadState.status === 'uploading' && `Ingesting ${uploadState.name}…`}
-              {uploadState.status === 'done' && `${uploadState.name} — ${uploadState.chunks} chunks indexed`}
-              {uploadState.status === 'error' && uploadState.message}
-            </span>
+            <div className="min-w-0">
+              <div className="truncate">
+                {uploadState.status === 'uploading' && `Uploading ${uploadState.name}…`}
+                {uploadState.status === 'ingesting' && (
+                  <span>
+                    <span className="text-slate-400">{uploadState.name} — </span>
+                    {STAGE_LABELS[uploadState.stage] ?? uploadState.stage}
+                  </span>
+                )}
+                {uploadState.status === 'done' && `${uploadState.name} — indexed successfully`}
+                {uploadState.status === 'error' && uploadState.message}
+              </div>
+              {uploadState.status === 'ingesting' && (
+                <div className="text-xs text-slate-500 mt-0.5">
+                  This takes 2–5 min (embeddings + knowledge graph)
+                </div>
+              )}
+            </div>
           </div>
         )}
 

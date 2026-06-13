@@ -42,7 +42,10 @@ def _load_graph() -> nx.DiGraph:
         return _graph
     if GRAPH_PATH.exists():
         data = json.loads(GRAPH_PATH.read_text(encoding="utf-8"))
-        _graph = nx.node_link_graph(data, edges="edges")
+        # NB: omit the edge-key kwarg — its name changed across NetworkX
+        # versions (3.3 uses `link`, 3.4+ uses `edges`). The default key
+        # ("links") is stable, and save/load here both rely on it.
+        _graph = nx.node_link_graph(data)
     else:
         _graph = nx.DiGraph()
     return _graph
@@ -50,7 +53,7 @@ def _load_graph() -> nx.DiGraph:
 
 def _save_graph(g: nx.DiGraph) -> None:
     tmp = GRAPH_PATH.with_suffix(".tmp")
-    data = nx.node_link_data(g, edges="edges")
+    data = nx.node_link_data(g)
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(GRAPH_PATH)  # atomic rename — crash-safe
 

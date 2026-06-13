@@ -36,8 +36,8 @@ VISION_MODEL       = os.getenv("VISION_MODEL",       "minicpm-v")
 EMBED_MODEL        = os.getenv("EMBED_MODEL",        "nomic-embed-text")
 
 # ── Inference ──────────────────────────────────────────────────────────────────
-CONTEXT_LENGTH    = int(os.getenv("CONTEXT_LENGTH",   "32768"))
-KV_CACHE_TYPE     = os.getenv("KV_CACHE_TYPE",        "q8_0")
+CONTEXT_LENGTH    = int(os.getenv("CONTEXT_LENGTH",   "16384"))
+KV_CACHE_TYPE     = os.getenv("KV_CACHE_TYPE",        "q4_0")
 
 # When conversation reaches this fraction of CONTEXT_LENGTH, compress history
 CONTEXT_COMPRESSION_THRESHOLD = float(
@@ -54,7 +54,7 @@ TOP_K_DENSE       = 10     # candidates from LanceDB ANN search
 TOP_K_SPARSE      = 10     # candidates from BM25
 TOP_K_RERANK      = 5      # final chunks passed to LLM after reranking
 RRF_K             = 60     # Reciprocal Rank Fusion constant (standard: 60)
-HYDE_ENABLED      = True   # Hypothetical Document Embeddings for hard queries
+HYDE_ENABLED      = False  # Disabled: doubles TTFT by running a full LLM call before search
 
 # ── GraphRAG ───────────────────────────────────────────────────────────────────
 GRAPH_MAX_HOPS       = 2   # max relationship hops during graph traversal

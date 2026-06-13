@@ -158,7 +158,7 @@ def _embed_batch(texts: list[str]) -> list[list[float]]:
                 embeddings.append(emb[0])
             else:
                 embeddings.append(emb)
-        except Exception:
-            logger.warning("Embedding failed for text snippet — using zero vector")
-            embeddings.append([0.0] * 768)
+        except Exception as exc:
+            logger.warning("Embedding failed for semantic chunking — falling back to recursive split: %s", exc)
+            raise
     return embeddings

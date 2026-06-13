@@ -19,7 +19,7 @@ Owner: Mohammad Saad — AI engineering + procurement. LinkedIn posts follow: bu
 | Layer | Tool |
 |---|---|
 | Model server | Ollama (Vulkan/AMD) |
-| Production model | Qwen 2.5 14B Q4_K_M |
+| Production model | Qwen 3 14B Q4_K_M |
 | Vision model | minicpm-v |
 | Embedding | nomic-embed-text (local, Ollama) |
 | Vector store | LanceDB (embedded, file-based) |
@@ -31,7 +31,8 @@ Owner: Mohammad Saad — AI engineering + procurement. LinkedIn posts follow: bu
 | Orchestration | LlamaIndex |
 | Document parsing | Docling |
 | Folder watcher | watchdog |
-| UI | Streamlit |
+| Backend API | FastAPI + uvicorn (SSE streaming) |
+| UI | React + TypeScript + Vite + Tailwind |
 | MCP server | mcp Python SDK |
 | Eval judge | DeepSeek V3 API (evaluation only) |
 | Eval framework | RAGAS |
@@ -57,13 +58,18 @@ Owner: Mohammad Saad — AI engineering + procurement. LinkedIn posts follow: bu
 │   ├── retrieval/              # dense, sparse, graph_retrieval, reranker, fusion, hyde
 │   ├── memory/                 # episodic, compressor, session
 │   ├── generation/             # ollama_client, router
-│   ├── evaluation/             # benchmark, metrics, ragas_eval
+│   ├── evaluation/             # benchmark, metrics, ragas_eval, niah/tool/coding/deepeval
+│   ├── api/                    # FastAPI backend — routes: chat, documents, system, benchmark
+│   │   ├── main.py             # app entry; serves Vite build from api/static in prod
+│   │   └── routes/             # chat.py (SSE), documents.py, system.py, benchmark.py
 │   └── mcp/                    # server.py (Claude Desktop tools)
 ├── ui/
-│   ├── app.py
-│   └── pages/                  # chat, documents, graph, benchmarks
+│   ├── web/                    # React + TypeScript + Vite SPA (the live UI)
+│   │   └── src/components/     # ChatWindow, DocumentPanel, BenchmarkPanel, Sidebar
+│   └── (legacy Streamlit: app.py + pages/ — superseded by ui/web, see D14)
 ├── scripts/
 │   ├── start_ollama.ps1        # Always use this — starts Ollama with Vulkan GPU
+│   ├── start_api.ps1           # Start FastAPI backend (uvicorn, port 8000)
 │   ├── verify_gpu.py           # Run first to confirm GPU
 │   ├── pull_models.ps1         # Pull all benchmark models (~45 GB)
 │   └── generate_test_corpus.py
@@ -88,8 +94,10 @@ $env:PYTHONIOENCODING = "utf-8"; python scripts/verify_gpu.py
 # Pull benchmark models
 .\scripts\pull_models.ps1
 
-# Run Streamlit UI
-streamlit run ui/app.py
+# Run the app — backend + frontend (two terminals)
+.\scripts\start_api.ps1                       # FastAPI on http://localhost:8000
+cd ui/web; npm run dev                         # Vite dev server on http://localhost:5173
+# Production: cd ui/web; npm run build  → copy build into src/api/static, then start_api only
 
 # Run full benchmark
 python src/evaluation/benchmark.py --output data/benchmarks/
@@ -144,7 +152,7 @@ Entry format (one block per decision):
 2. Document ingestion: PDF, DOCX, MD, TXT, images
 3. Hybrid retrieval: dense + BM25 + GraphRAG + cross-encoder reranker
 4. Episodic memory: Mem0 + SQLite, cross-session persistence
-5. Streamlit UI: chat + document manager + graph view + benchmark viewer
+5. Web UI (React + FastAPI): chat + document manager + graph view + benchmark viewer
 6. MCP server: Claude Desktop integration
 
 ## Future Development (out of scope — design for extensibility)

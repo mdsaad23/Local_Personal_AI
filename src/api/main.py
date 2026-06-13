@@ -37,6 +37,8 @@ app.include_router(documents.router, prefix="/api")
 app.include_router(system.router,    prefix="/api")
 app.include_router(benchmark.router, prefix="/api")
 
+
+
 # Serve the Vite production build (after `npm run build`)
 _static = Path(__file__).parent / "static"
 if _static.exists() and any(_static.iterdir()):

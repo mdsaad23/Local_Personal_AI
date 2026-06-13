@@ -85,7 +85,7 @@ def retrieve_relevant(query: str, limit: int = EPISODIC_INJECT_COUNT) -> list[st
     if client is None:
         return []
     try:
-        results = client.search(query, user_id=_DEFAULT_USER, limit=limit)
+        results = client.search(query, filters={"user_id": _DEFAULT_USER}, limit=limit)
         memories = results.get("results", results) if isinstance(results, dict) else results
         return [m.get("memory", str(m)) for m in memories if m]
     except Exception:
@@ -99,7 +99,7 @@ def get_all_memories() -> list[dict[str, Any]]:
     if client is None:
         return []
     try:
-        results = client.get_all(user_id=_DEFAULT_USER)
+        results = client.get_all(filters={"user_id": _DEFAULT_USER})
         memories = results.get("results", results) if isinstance(results, dict) else results
         return list(memories)
     except Exception:

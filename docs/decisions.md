@@ -34,6 +34,7 @@ Live record of every architectural and tooling decision. Updated after every pha
 **Impact:** Benchmark now spans dense models (3B–14B), and MoE models (Gemma 4 27B at 4B active, Llama 4 Scout at 17B active) — this gives a genuine MoE vs dense comparison which is the actual LinkedIn insight.
 **What's lacking:** No speculative decoding in Ollama (would improve TGS 30–50%). Thinking mode not automatically triggered — query router should activate it for complex queries.
 **Ideal state:** Query router with three paths: simple factual → Llama 3.2 3B, standard RAG → Qwen 3 14B no-thinking, multi-hop reasoning → Qwen 3 14B with thinking. Planned in `src/generation/router.py`.
+**Updated:** 2026-06-13 — **Llama 4 Scout removed from the benchmark matrix.** Measured 67 GB on disk (109B total weights); at 16 GB VRAM it forced heavy RAM offload, making TGS unusable and the comparison apples-to-oranges. Remaining matrix is dense 3B–14B plus the Gemma 4 MoE (26B total / 4B active) for the MoE-vs-dense datapoint.
 
 ---
 
@@ -164,6 +165,7 @@ Live record of every architectural and tooling decision. Updated after every pha
 **Impact:** UI is a demonstration layer — correct investment level for Phase 1. Benchmark visualisation with Plotly renders natively.
 **What's lacking:** Persistent chat history across page refreshes. Large graph views (>10K nodes) will be slow (pyvis renders client-side).
 **Ideal state:** Streamlit for Phase 1. FastAPI + lightweight React for Phase 3 (multi-user, mobile). MCP server is the production integration path regardless of UI.
+**Updated:** 2026-06-13 — REVERSED. Migrated off Streamlit to a **FastAPI backend (`src/api/`) + React/TypeScript/Vite/Tailwind SPA (`ui/web/`)**. Reason: Streamlit's full-rerun model couldn't deliver proper token-by-token chat streaming or a non-blocking document-upload UX, and session state cleared on refresh. FastAPI streams tokens over SSE (`/api/chats/{id}/stream`) and runs ingestion as a background task; React owns client state. In prod the Vite build is served from `src/api/static` by the same FastAPI process (single origin, no CORS); in dev Vite (5173) proxies `/api/*` to uvicorn (8000). The legacy Streamlit code (`ui/app.py`, `ui/pages/`) remains in-tree but is dead — `ui/web/` is the live UI. The "FastAPI + React" originally slated for Phase 3 was pulled forward to Phase 1.
 
 ---
 

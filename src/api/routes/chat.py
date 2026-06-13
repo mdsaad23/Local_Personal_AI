@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File
@@ -19,6 +20,7 @@ from pydantic import BaseModel
 from config.settings import PRODUCTION_MODEL, VISION_MODEL
 
 router = APIRouter(tags=["chat"])
+logger = logging.getLogger(__name__)
 
 # Best vision-capable model in priority order (checked against pulled models)
 _VISION_PREFERENCE = ["gemma4:26b-a4b-it-q4_K_M", "llama4:scout", "minicpm-v"]
@@ -94,6 +96,7 @@ async def _sse_stream(
         return f"data: {json.dumps(data)}\n\n"
 
     try:
+        import asyncio
         from src.generation.router import retrieve_for_query, build_prompt
         from src.generation.ollama_client import stream_response
         from src.memory.episodic import retrieve_relevant
@@ -103,14 +106,19 @@ async def _sse_stream(
         # Choose model: vision model if image attached, else production
         model = _pick_vision_model() if image_b64 else PRODUCTION_MODEL
 
-        # For vision queries, skip RAG (the image IS the context)
+        # Run all blocking retrieval in thread pool — keeps event loop free
         if image_b64:
-            from src.generation.router import RouteType, build_prompt as _bp
+            from src.generation.router import RouteType
             chunks, route = [], RouteType.DIRECT
             memories = []
         else:
-            chunks, route = retrieve_for_query(message)
-            memories = retrieve_relevant(message, limit=3)
+            loop = asyncio.get_event_loop()
+            chunks, route = await loop.run_in_executor(
+                None, retrieve_for_query, message
+            )
+            memories = await loop.run_in_executor(
+                None, retrieve_relevant, message, 3
+            )
 
         # Emit retrieved sources before generation starts
         if chunks:
@@ -121,30 +129,26 @@ async def _sse_stream(
             ]
             yield _event({"type": "sources", "sources": sources})
 
-        # Build context-aware prompt
+        # Build context-aware prompt (CPU-only, fast)
         history = get_messages(session_id)
         history_msgs = [{"role": m["role"], "content": m["content"]} for m in history]
         prompt_msgs = build_prompt(message, chunks, memories)
-        # Merge: system msg + history + new user turn
         system_msg = prompt_msgs[0]
         user_turn = prompt_msgs[-1]
         full_messages = [system_msg] + history_msgs + [user_turn]
 
-        # Compress if approaching context limit
         if should_compress(full_messages):
             full_messages = compress(full_messages)
 
-        # Stream tokens
+        # Stream tokens — async generator keeps event loop free
         full_response: list[str] = []
         metrics: dict = {}
-        gen = stream_response(full_messages, model=model, image_b64=image_b64)
-        try:
-            while True:
-                token = next(gen)
+        async for token, meta in stream_response(full_messages, model=model, image_b64=image_b64):
+            if token:
                 full_response.append(token)
                 yield _event({"type": "token", "content": token})
-        except StopIteration as e:
-            metrics = e.value or {}
+            elif meta:
+                metrics = meta
 
         response_text = "".join(full_response)
 
@@ -161,7 +165,10 @@ async def _sse_stream(
         })
 
     except Exception as exc:
-        yield _event({"type": "error", "message": str(exc)})
+        import traceback
+        msg = str(exc) or f"{type(exc).__name__} (no message)"
+        logger.error("Chat stream error: %s\n%s", msg, traceback.format_exc())
+        yield _event({"type": "error", "message": msg})
 
 
 @router.post("/chats/{session_id}/stream")

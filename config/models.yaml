@@ -84,24 +84,6 @@ benchmark_models:
     moe: true
     notes: "MoE - 4B active params, 26B total. Instruction-tuned. Fits 16GB VRAM at Q4_K_M. Vision + tool calling."
 
-  # Llama 4 Scout (Meta, April 2026) - MoE: 17B active / 109B total parameters
-  # ACTUAL measured size: 67 GB on disk (Q5 equivalent of 109B total weights).
-  # MoE activates only 17B params per forward pass, but ALL 109B weights must
-  # be stored. Ollama will offload excess to system RAM (31 GB available).
-  # Expect slower TGS than dense 14B due to RAM↔GPU weight paging.
-  # The benchmark value: does MoE quality compensate for the speed penalty?
-  - id: llama4:scout
-    name: "Llama 4 Scout"
-    family: "Llama 4"
-    params_b: 109       # total; 17B active (MoE)
-    active_params_b: 17
-    disk_size_gb: 67    # actual measured — NOT estimated
-    quant: "Q5_K_M"    # inferred from 67GB / 109B params
-    bits: 5
-    expected_vram_gb: 16.0   # GPU saturated; remainder (~51GB) offloads to RAM
-    moe: true
-    notes: "67GB on disk. Requires RAM offloading — TGS will be lower than dense 14B. Benchmark tests MoE quality vs speed tradeoff under RAM-offload conditions."
-
   - id: mistral:7b-instruct-v0.3-q4_K_M
     name: "Mistral 7B v0.3 Q4_K_M"
     family: "Mistral"
