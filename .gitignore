@@ -47,3 +47,11 @@ src/api/static/index.html
 
 # Node
 ui/web/node_modules/
+
+# Private — LinkedIn strategy, portfolio, internal tasks (local only, never public)
+AI_Engineering_Project_Portfolio.md
+LinkedIn post Instructions.txt
+TASKS_FOR_YOU.md
+docs/linkedin-posts.md
+docs/linkedin-agent-guide.md
+.claude/agents/linkedin-post-writer.md
