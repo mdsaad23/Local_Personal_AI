@@ -11,8 +11,21 @@ from pydantic import BaseModel
 router = APIRouter(tags=["documents"])
 logger = logging.getLogger(__name__)
 
-# Track in-progress ingestions: doc_id → status string
-_ingestion_status: dict[str, str] = {}
+# Track in-progress ingestions: key (filename hint or content doc_id) → progress record.
+# Each record: {stage, progress (0-100), detail, error}.
+_ingestion_status: dict[str, dict] = {}
+
+# Stage → percent-complete, so the UI can render a real progress bar. building_graph
+# (spaCy NER + LLM relation extraction) is the slow tail, hence the wide 80→100 band.
+_STAGE_PROGRESS: dict[str, int] = {
+    "queued":         5,
+    "parsing":        20,
+    "chunking":       40,
+    "embedding":      60,
+    "storing":        80,
+    "building_graph": 92,
+    "complete":       100,
+}
 
 
 class DocumentOut(BaseModel):
@@ -43,16 +56,40 @@ def _run_ingestion(tmp_path: Path, filename: str, doc_id_hint: str) -> None:
     # so every status update must be written under the hint. Once the real
     # content-hash doc_id is known we mirror status under it too.
     keys = [doc_id_hint]
+    stage = "queued"
 
-    def _status(value: str) -> None:
+    def _set(new_stage: str, detail: str = "") -> None:
+        nonlocal stage
+        stage = new_stage
+        record = {
+            "stage":    new_stage,
+            "progress": _STAGE_PROGRESS.get(new_stage, 0),
+            "detail":   detail,
+            "error":    "",
+        }
         for k in keys:
-            _ingestion_status[k] = value
+            _ingestion_status[k] = record
+        logger.info("Ingest [%s] %s — %s%s", filename, new_stage,
+                    f"{record['progress']}%", f" ({detail})" if detail else "")
+
+    def _fail(message: str) -> None:
+        # Preserve which stage we were in so the UI shows where it broke.
+        record = {
+            "stage":    "error",
+            "progress": _STAGE_PROGRESS.get(stage, 0),
+            "detail":   "",
+            "error":    message,
+            "failed_stage": stage,
+        }
+        for k in keys:
+            _ingestion_status[k] = record
+        logger.error("Ingest [%s] FAILED at %s — %s", filename, stage, message)
 
     try:
-        _status("parsing")
+        _set("parsing")
         sections = parse_file(tmp_path)
         if not sections:
-            _status("error: no content extracted")
+            _fail("No content extracted from the file (unreadable or empty).")
             return
 
         doc_id = sections[0].get("doc_id", doc_id_hint)
@@ -64,17 +101,17 @@ def _run_ingestion(tmp_path: Path, filename: str, doc_id_hint: str) -> None:
         for section in sections:
             section["source"] = filename
 
-        _status("chunking")
+        _set("chunking", f"{len(sections)} section(s)")
         chunks = chunk_pages(sections)
 
-        _status("embedding")
+        _set("embedding", f"{len(chunks)} chunk(s)")
         embedded = embed_chunks(chunks)
         if not embedded:
-            _status("error: no indexable content (document too short)")
+            _fail("No indexable content — the document produced no embeddable text.")
             logger.warning("No chunks produced for %s — nothing stored", filename)
             return
 
-        _status("storing")
+        _set("storing", f"{len(embedded)} chunk(s)")
         try:
             delete_doc(doc_id)
         except Exception:
@@ -82,18 +119,18 @@ def _run_ingestion(tmp_path: Path, filename: str, doc_id_hint: str) -> None:
         store_chunks(embedded)
         add_chunks_to_bm25(embedded)
 
-        _status("building_graph")
+        _set("building_graph")
         try:
             build_graph_from_chunks(embedded)
         except Exception as exc:
             logger.warning("Graph build skipped for %s: %s", filename, exc)
 
-        _status("complete")
+        _set("complete", f"{len(embedded)} chunk(s) indexed")
         logger.info("Ingestion complete: %s (%d chunks)", filename, len(embedded))
 
     except Exception as exc:
         logger.exception("Ingestion failed for %s", filename)
-        _status(f"error: {exc}")
+        _fail(f"{type(exc).__name__}: {exc}")
     finally:
         tmp_path.unlink(missing_ok=True)
 
@@ -107,7 +144,11 @@ async def list_documents():
 
 @router.get("/documents/status/{doc_id}")
 async def ingestion_status(doc_id: str):
-    return {"doc_id": doc_id, "status": _ingestion_status.get(doc_id, "unknown")}
+    record = _ingestion_status.get(doc_id)
+    if record is None:
+        return {"doc_id": doc_id, "stage": "unknown", "progress": 0, "detail": "", "error": ""}
+    # `status` kept for backward compatibility with older clients (= stage string).
+    return {"doc_id": doc_id, "status": record["stage"], **record}
 
 
 @router.post("/documents", response_model=IngestResult)
@@ -122,7 +163,9 @@ async def upload_document(
 
     # Use filename as a temporary key until real doc_id is known after parsing
     doc_id_hint = file.filename or "upload"
-    _ingestion_status[doc_id_hint] = "queued"
+    _ingestion_status[doc_id_hint] = {
+        "stage": "queued", "progress": _STAGE_PROGRESS["queued"], "detail": "", "error": "",
+    }
 
     # Run blocking ingestion in thread pool — returns immediately to the client
     loop = asyncio.get_event_loop()
@@ -177,5 +220,11 @@ async def reingest_document(doc_id: str):
 @router.delete("/documents/{doc_id}", status_code=204)
 async def delete_document(doc_id: str):
     from src.retrieval.dense import delete_doc
+    from src.retrieval.sparse import rebuild_index_from_lancedb
+
+    def _do():
+        delete_doc(doc_id)
+        rebuild_index_from_lancedb()
+
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, delete_doc, doc_id)
+    await loop.run_in_executor(None, _do)

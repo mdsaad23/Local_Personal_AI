@@ -30,7 +30,9 @@ for _d in [DOCUMENTS_DIR, DB_DIR, BENCHMARKS_DIR, PROCESSED_DIR,
     _d.mkdir(parents=True, exist_ok=True)
 
 # ── Ollama ─────────────────────────────────────────────────────────────────────
-OLLAMA_BASE_URL    = os.getenv("OLLAMA_BASE_URL",    "http://localhost:11434")
+# Use 127.0.0.1, not localhost: Ollama binds IPv4 only, but `localhost` resolves
+# to ::1 (IPv6) first on Windows, causing slow/failed connections before fallback.
+OLLAMA_BASE_URL    = os.getenv("OLLAMA_BASE_URL",    "http://127.0.0.1:11434")
 PRODUCTION_MODEL   = os.getenv("PRODUCTION_MODEL",   "qwen3:14b-q4_K_M")
 VISION_MODEL       = os.getenv("VISION_MODEL",       "minicpm-v")
 EMBED_MODEL        = os.getenv("EMBED_MODEL",        "nomic-embed-text")
@@ -80,6 +82,19 @@ DEEPSEEK_MODEL    = "deepseek-chat"   # DeepSeek-V3
 BENCHMARK_QUERY_COUNT   = 50
 BENCHMARK_WARMUP_RUNS   = 3    # discarded — let GPU/CPU warm up before timing
 BENCHMARK_TIMEOUT_SEC   = 120  # abort single query if it exceeds this
+
+# ── Positional-recall (codeneedle) suite ───────────────────────────────────────
+# Vendored from github.com/mdsaad23/local_llm_benchmarking — runs each model
+# through its CLI (bench.py) against an OpenAI-compatible endpoint. Ollama
+# exposes one at OLLAMA_BASE_URL + /v1, which the vendored client appends itself.
+NEEDLE_DIR          = ROOT_DIR / "vendor" / "local_llm_benchmarking"
+# Corpora (configs/corpora/<name>.toml) to run, in order. Only http_server
+# (~14K tokens, fits a 32K context) is shipped — large JS corpora that need
+# 100K+ context are intentionally excluded.
+NEEDLE_CORPORA      = [c.strip() for c in
+                       os.getenv("NEEDLE_CORPORA", "http_server").split(",") if c.strip()]
+NEEDLE_MAX_TOKENS   = int(os.getenv("NEEDLE_MAX_TOKENS", "6000"))
+NEEDLE_TIMEOUT_SEC  = float(os.getenv("NEEDLE_TIMEOUT_SEC", "600"))
 
 # ── Supported file types ───────────────────────────────────────────────────────
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".md", ".txt",

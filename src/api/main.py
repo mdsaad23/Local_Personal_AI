@@ -20,7 +20,23 @@ from fastapi.responses import FileResponse
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.api.routes import chat, documents, system, benchmark
+# Verify that the server is running inside the correct virtual environment and has critical RAG libraries
+try:
+    import docling
+    import lancedb
+    import spacy
+    import sentence_transformers
+except ImportError as e:
+    print("\n" + "="*80, file=sys.stderr)
+    print(f"CRITICAL STARTUP ERROR: Missing required library: {e}", file=sys.stderr)
+    print("This usually happens when running the server outside the virtual environment (.venv).", file=sys.stderr)
+    print("Please activate the virtual environment and run the server again:", file=sys.stderr)
+    print("  Windows PowerShell:  .venv\\Scripts\\Activate.ps1", file=sys.stderr)
+    print("  Windows CMD:         .venv\\Scripts\\activate.bat", file=sys.stderr)
+    print("="*80 + "\n", file=sys.stderr)
+    sys.exit(1)
+
+from src.api.routes import chat, documents, system, benchmark, models
 
 app = FastAPI(title="Local AI Assistant", version="1.0.0")
 
@@ -36,6 +52,7 @@ app.include_router(chat.router,      prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(system.router,    prefix="/api")
 app.include_router(benchmark.router, prefix="/api")
+app.include_router(models.router,    prefix="/api")
 
 
 

@@ -1,9 +1,11 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
 import { api } from '../api/client'
 import type { Message, Source } from '../types'
 import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
+import { ModelSelector } from './ModelSelector'
+import { ModelLoadingModal } from './ModelLoadingModal'
 
 interface Props {
   sessionId: string | null
@@ -21,6 +23,30 @@ export default function ChatWindow({
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const streamingRef = useRef(false)
+  const [loadingModelStatus, setLoadingModelStatus] = useState<string | null>(null)
+
+  const handleModelSelect = async (modelId: string) => {
+    setLoadingModelStatus('Initializing...')
+    try {
+      for await (const event of api.switchModel(modelId)) {
+        if (event.status === 'ready') {
+          setLoadingModelStatus(null)
+        } else if (event.status === 'error') {
+          // @ts-ignore
+          setLoadingModelStatus(`Error: ${event.message}`)
+          setTimeout(() => setLoadingModelStatus(null), 3000)
+        } else {
+          // @ts-ignore
+          const verb = event.status === 'unloading' ? 'Unloading' : 'Loading'
+          // @ts-ignore
+          setLoadingModelStatus(`${verb} ${event.model}...`)
+        }
+      }
+    } catch (err: any) {
+      setLoadingModelStatus(`Failed to switch model: ${err.message}`)
+      setTimeout(() => setLoadingModelStatus(null), 3000)
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -79,8 +105,11 @@ export default function ChatWindow({
             metrics: {
               ttft: event.ttft,
               tgs: event.tgs,
+              tokens: event.tokens,
               route: event.route,
               model: event.model,
+              vram_bytes: event.vram_bytes,
+              ram_bytes: event.ram_bytes,
             },
           })
         } else if (event.type === 'error') {
@@ -98,7 +127,15 @@ export default function ChatWindow({
   const isStreaming = messages.some(m => m.streaming)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      {loadingModelStatus && <ModelLoadingModal status={loadingModelStatus} />}
+      
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/50 bg-slate-900/50">
+        <h2 className="text-sm font-medium text-slate-300">Chat</h2>
+        <ModelSelector onSelectModel={handleModelSelect} disabled={isStreaming || !!loadingModelStatus} />
+      </div>
+
       {/* Message list */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {messages.length === 0 ? (

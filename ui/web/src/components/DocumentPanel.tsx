@@ -9,10 +9,10 @@ interface Props {
 
 type UploadState =
   | { status: 'idle' }
-  | { status: 'uploading'; name: string }
-  | { status: 'ingesting'; name: string; stage: string }
+  | { status: 'uploading'; name: string; progress: number }
+  | { status: 'ingesting'; name: string; stage: string; progress: number; detail: string }
   | { status: 'done'; name: string }
-  | { status: 'error'; message: string }
+  | { status: 'error'; message: string; failedStage?: string; progress: number }
 
 const STAGE_LABELS: Record<string, string> = {
   queued:         'Queued…',
@@ -49,36 +49,46 @@ export default function DocumentPanel({ onClose }: Props) {
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/documents/status/${encodeURIComponent(docId)}`)
-        const data = await res.json()
-        const stage: string = data.status || 'unknown'
+        const data = await api.getIngestionStatus(docId)
+        const stage: string = data.stage || 'unknown'
 
         if (stage === 'complete') {
           clearInterval(pollRef.current!)
           setUploadState({ status: 'done', name })
           await refresh()
           setTimeout(() => setUploadState({ status: 'idle' }), 3000)
-        } else if (stage.startsWith('error')) {
+        } else if (stage === 'error') {
           clearInterval(pollRef.current!)
-          setUploadState({ status: 'error', message: stage })
+          setUploadState({
+            status: 'error',
+            message: data.error || 'Ingestion failed',
+            failedStage: data.failed_stage,
+            progress: data.progress ?? 0,
+          })
         } else {
-          setUploadState({ status: 'ingesting', name, stage })
+          setUploadState({
+            status: 'ingesting', name, stage,
+            progress: data.progress ?? 0,
+            detail: data.detail || '',
+          })
         }
       } catch { /* server busy, retry */ }
-    }, 1500)
+    }, 1200)
   }, [refresh])
 
   const handleUpload = useCallback(async (file: File) => {
-    setUploadState({ status: 'uploading', name: file.name })
+    setUploadState({ status: 'uploading', name: file.name, progress: 0 })
     try {
-      const result = await api.uploadDocument(file)
-      // Server returns immediately with status='ingesting'
-      const docId = (result as any).doc_id || file.name
-      setUploadState({ status: 'ingesting', name: file.name, stage: 'queued' })
+      const result = await api.uploadDocumentProgress(file, (pct) => {
+        setUploadState({ status: 'uploading', name: file.name, progress: pct })
+      })
+      // Server returns immediately once the file is received; ingestion runs async.
+      const docId = result.doc_id || file.name
+      setUploadState({ status: 'ingesting', name: file.name, stage: 'queued', progress: 5, detail: '' })
       pollStatus(docId, file.name)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Upload failed'
-      setUploadState({ status: 'error', message: msg })
+      setUploadState({ status: 'error', message: msg, progress: 0 })
     }
   }, [pollStatus])
 

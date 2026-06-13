@@ -63,6 +63,11 @@ def add_chunks_to_bm25(chunks: list[dict[str, Any]]) -> None:
     if not new_entries:
         return
 
+    # Avoid duplicate chunks by removing any existing entries with same doc_id
+    doc_ids_to_remove = {c.get("doc_id") for c in new_entries if c.get("doc_id")}
+    if doc_ids_to_remove:
+        _corpus = [c for c in _corpus if c.get("doc_id") not in doc_ids_to_remove]
+
     _corpus.extend(new_entries)
     tokenised = [_tokenise(c["text"]) for c in _corpus]
     _bm25 = BM25Okapi(tokenised)

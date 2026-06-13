@@ -1,0 +1,14 @@
+[
+  {
+    "model_id": "llama3.2:3b-instruct-q4_K_M",
+    "corpus": "http_server",
+    "n_functions": 11,
+    "passed": 0,
+    "errored": 0,
+    "pass_rate": 0.0,
+    "avg_recall": 0.059,
+    "avg_latency_s": 11.0,
+    "duration_s": 131.1,
+    "error": ""
+  }
+]

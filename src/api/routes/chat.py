@@ -17,7 +17,8 @@ from fastapi import APIRouter, Form, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from config.settings import PRODUCTION_MODEL, VISION_MODEL
+from config.settings import VISION_MODEL
+from src.api.state import state
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class MessageOut(BaseModel):
     role: str
     content: str
     has_image: bool
+    metrics: dict | None = None
     timestamp: float
 
 
@@ -103,8 +105,8 @@ async def _sse_stream(
         from src.memory.session import add_message, get_messages
         from src.memory.compressor import should_compress, compress
 
-        # Choose model: vision model if image attached, else production
-        model = _pick_vision_model() if image_b64 else PRODUCTION_MODEL
+        # Choose model: vision model if image attached, else current active model
+        model = _pick_vision_model() if image_b64 else state.current_model
 
         # Run all blocking retrieval in thread pool — keeps event loop free
         if image_b64:
@@ -154,14 +156,18 @@ async def _sse_stream(
 
         # Persist both turns
         add_message(session_id, "user", message, has_image=bool(image_b64))
-        add_message(session_id, "assistant", response_text)
+        saved_metrics = {
+            "ttft": metrics.get("ttft_s"),
+            "tgs": metrics.get("tgs"),
+            "tokens": metrics.get("eval_count"),
+            "route": str(route),
+            "model": model,
+        }
+        add_message(session_id, "assistant", response_text, metrics=saved_metrics)
 
         yield _event({
             "type": "done",
-            "ttft": metrics.get("ttft_s"),
-            "tgs": metrics.get("tgs"),
-            "route": str(route),
-            "model": model,
+            **saved_metrics
         })
 
     except Exception as exc:

@@ -1,0 +1,151 @@
+{
+  "run_id": "run_1781363702",
+  "suites": {
+    "tools": {
+      "label": "Tool Calling",
+      "columns": [
+        {
+          "key": "model_name",
+          "label": "Model"
+        },
+        {
+          "key": "tool_support",
+          "label": "Tool support"
+        },
+        {
+          "key": "fn_accuracy",
+          "label": "Fn accuracy"
+        },
+        {
+          "key": "arg_accuracy",
+          "label": "Arg accuracy"
+        }
+      ],
+      "rows": [
+        {
+          "model_id": "llama3.2:3b-instruct-q4_K_M",
+          "model_name": "Llama 3.2 3B Q4_K_M",
+          "tool_support": "5/5",
+          "fn_accuracy": "5/5",
+          "arg_accuracy": "5/5"
+        },
+        {
+          "model_id": "llama3.2:3b-instruct-q8_0",
+          "model_name": "Llama 3.2 3B Q8_0",
+          "tool_support": "5/5",
+          "fn_accuracy": "5/5",
+          "arg_accuracy": "5/5"
+        },
+        {
+          "model_id": "llama3.1:8b-instruct-q4_K_M",
+          "model_name": "Llama 3.1 8B Q4_K_M",
+          "tool_support": "5/5",
+          "fn_accuracy": "5/5",
+          "arg_accuracy": "5/5"
+        },
+        {
+          "model_id": "llama3.1:8b-instruct-q8_0",
+          "model_name": "Llama 3.1 8B Q8_0",
+          "tool_support": "5/5",
+          "fn_accuracy": "5/5",
+          "arg_accuracy": "5/5"
+        },
+        {
+          "model_id": "phi4:14b-q4_K_M",
+          "model_name": "Phi-4 14B Q4_K_M",
+          "tool_support": "0/5",
+          "fn_accuracy": "0/5",
+          "arg_accuracy": "0/5"
+        },
+        {
+          "model_id": "qwen3:14b-q4_K_M",
+          "model_name": "Qwen 3 14B Q4_K_M",
+          "tool_support": "5/5",
+          "fn_accuracy": "5/5",
+          "arg_accuracy": "5/5"
+        },
+        {
+          "model_id": "gemma4:26b-a4b-it-q4_K_M",
+          "model_name": "Gemma 4 26B (A4B) Q4_K_M",
+          "tool_support": "5/5",
+          "fn_accuracy": "5/5",
+          "arg_accuracy": "5/5"
+        },
+        {
+          "model_id": "mistral:7b-instruct-v0.3-q4_K_M",
+          "model_name": "Mistral 7B v0.3 Q4_K_M",
+          "tool_support": "5/5",
+          "fn_accuracy": "5/5",
+          "arg_accuracy": "5/5"
+        }
+      ]
+    },
+    "needle": {
+      "label": "Positional Recall (codeneedle)",
+      "columns": [
+        {
+          "key": "model_name",
+          "label": "Model"
+        },
+        {
+          "key": "corpus",
+          "label": "Corpus"
+        },
+        {
+          "key": "pass_rate",
+          "label": "Pass rate"
+        },
+        {
+          "key": "avg_recall",
+          "label": "Avg line recall"
+        },
+        {
+          "key": "passed",
+          "label": "Functions passed"
+        },
+        {
+          "key": "note",
+          "label": "Notes"
+        }
+      ],
+      "rows": [
+        {
+          "model_id": "llama3.2:3b-instruct-q4_K_M",
+          "model_name": "Llama 3.2 3B Q4_K_M",
+          "corpus": "http_server",
+          "pass_rate": "0%",
+          "avg_recall": "6%",
+          "passed": "0/11",
+          "note": "ok"
+        },
+        {
+          "model_id": "llama3.2:3b-instruct-q8_0",
+          "model_name": "Llama 3.2 3B Q8_0",
+          "corpus": "http_server",
+          "pass_rate": "0%",
+          "avg_recall": "8%",
+          "passed": "0/11",
+          "note": "ok"
+        },
+        {
+          "model_id": "llama3.1:8b-instruct-q4_K_M",
+          "model_name": "Llama 3.1 8B Q4_K_M",
+          "corpus": "http_server",
+          "pass_rate": "9%",
+          "avg_recall": "16%",
+          "passed": "1/11",
+          "note": "ok"
+        },
+        {
+          "model_id": "llama3.1:8b-instruct-q8_0",
+          "model_name": "Llama 3.1 8B Q8_0",
+          "corpus": "http_server",
+          "pass_rate": "\u2014",
+          "avg_recall": "\u2014",
+          "passed": "\u2014",
+          "note": "cancelled"
+        }
+      ]
+    }
+  }
+}

@@ -122,9 +122,12 @@ def _recursive_split(text: str) -> list[str]:
     """
     words = text.split()
     if len(words) <= CHUNK_SIZE:
-        if len(words) >= MIN_CHUNK_SIZE:
-            return [text]
-        return []
+        # Index the whole thing as one chunk. The MIN_CHUNK_SIZE guard is meant to
+        # drop tiny *fragments* produced while splitting a larger document — not to
+        # reject an entire short document. Applying it here silently dropped every
+        # single-block upload under MIN_CHUNK_SIZE words, so the ingest failed with
+        # "no indexable content". Keep any non-empty document.
+        return [text] if text.strip() else []
 
     chunks: list[str] = []
     start = 0
@@ -133,6 +136,8 @@ def _recursive_split(text: str) -> list[str]:
         chunk = " ".join(words[start:end])
         if len(words[start:end]) >= MIN_CHUNK_SIZE:
             chunks.append(chunk)
+        if end >= len(words):
+            break
         start = end - CHUNK_OVERLAP  # overlap between chunks
         if start <= 0:
             break

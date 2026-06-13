@@ -11,6 +11,7 @@ interface Props {
 export default function MessageBubble({ message }: Props) {
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const isUser = message.role === 'user'
+  const formatGB = (bytes: number) => (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB'
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} group`}>
@@ -59,8 +60,17 @@ export default function MessageBubble({ message }: Props) {
             {message.metrics.ttft != null && (
               <span>TTFT {message.metrics.ttft.toFixed(2)}s</span>
             )}
+            {message.metrics.tokens != null && (
+              <span>{message.metrics.tokens} tokens</span>
+            )}
             {message.metrics.tgs != null && (
               <span>{message.metrics.tgs.toFixed(1)} t/s</span>
+            )}
+            {message.metrics.vram_bytes != null && (
+              <span className="text-emerald-500/70">VRAM {formatGB(message.metrics.vram_bytes)}</span>
+            )}
+            {message.metrics.ram_bytes != null && message.metrics.ram_bytes > 0 && (
+              <span className="text-amber-500/70">RAM {formatGB(message.metrics.ram_bytes)}</span>
             )}
           </div>
         )}

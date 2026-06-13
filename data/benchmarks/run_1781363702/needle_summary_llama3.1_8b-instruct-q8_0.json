@@ -1,0 +1,14 @@
+[
+  {
+    "model_id": "llama3.1:8b-instruct-q8_0",
+    "corpus": "http_server",
+    "n_functions": 0,
+    "passed": 0,
+    "errored": 0,
+    "pass_rate": 0.0,
+    "avg_recall": 0.0,
+    "avg_latency_s": null,
+    "duration_s": 0.0,
+    "error": "cancelled"
+  }
+]

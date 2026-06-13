@@ -1,0 +1,47 @@
+[
+  {
+    "model_id": "llama3.1:8b-instruct-q8_0",
+    "task_id": "weather",
+    "tool_supported": false,
+    "correct_fn": false,
+    "correct_args": false,
+    "latency_s": 32.193,
+    "raw_call": "timed out"
+  },
+  {
+    "model_id": "llama3.1:8b-instruct-q8_0",
+    "task_id": "calculator",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 6.904,
+    "raw_call": "{\"name\": \"calculate\", \"args\": {\"expression\": \"1847 * 293\"}}"
+  },
+  {
+    "model_id": "llama3.1:8b-instruct-q8_0",
+    "task_id": "search",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 2.787,
+    "raw_call": "{\"name\": \"search_papers\", \"args\": {\"max_results\": 10, \"query\": \"retrieval augmented generation research papers\"}}"
+  },
+  {
+    "model_id": "llama3.1:8b-instruct-q8_0",
+    "task_id": "calendar",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 3.137,
+    "raw_call": "{\"name\": \"create_event\", \"args\": {\"attendees\": \"[\\\"alice@company.com\\\"]\", \"datetime_iso\": \"2024-03-12T14:00:00+00:00\", \"title\": \"Project Sync\"}}"
+  },
+  {
+    "model_id": "llama3.1:8b-instruct-q8_0",
+    "task_id": "email",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 2.881,
+    "raw_call": "{\"name\": \"send_email\", \"args\": {\"body\": \"A quarterly report is attached.\", \"subject\": \"Quarterly Report\", \"to\": \"bob@example.com\"}}"
+  }
+]

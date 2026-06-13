@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/
+.claude/
+
+# Runtime artifacts
+*.log
+.bash_history
+
+# API keys and other secrets — NEVER commit
+.secrets/
+*.key
+
+# Benchmark outputs — each user generates their own
+results/*.json
+analysis/charts/

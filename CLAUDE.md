@@ -58,7 +58,7 @@ Owner: Mohammad Saad — AI engineering + procurement. LinkedIn posts follow: bu
 │   ├── retrieval/              # dense, sparse, graph_retrieval, reranker, fusion, hyde
 │   ├── memory/                 # episodic, compressor, session
 │   ├── generation/             # ollama_client, router
-│   ├── evaluation/             # benchmark, metrics, ragas_eval, niah/tool/coding/deepeval
+│   ├── evaluation/             # benchmark, metrics, ragas_eval, niah/tool/coding/deepeval/needle
 │   ├── api/                    # FastAPI backend — routes: chat, documents, system, benchmark
 │   │   ├── main.py             # app entry; serves Vite build from api/static in prod
 │   │   └── routes/             # chat.py (SSE), documents.py, system.py, benchmark.py
@@ -67,6 +67,8 @@ Owner: Mohammad Saad — AI engineering + procurement. LinkedIn posts follow: bu
 │   ├── web/                    # React + TypeScript + Vite SPA (the live UI)
 │   │   └── src/components/     # ChatWindow, DocumentPanel, BenchmarkPanel, Sidebar
 │   └── (legacy Streamlit: app.py + pages/ — superseded by ui/web, see D14)
+├── vendor/
+│   └── local_llm_benchmarking/ # Vendored codeneedle (positional-recall bench) — driven by needle suite (D18)
 ├── scripts/
 │   ├── start_ollama.ps1        # Always use this — starts Ollama with Vulkan GPU
 │   ├── start_api.ps1           # Start FastAPI backend (uvicorn, port 8000)

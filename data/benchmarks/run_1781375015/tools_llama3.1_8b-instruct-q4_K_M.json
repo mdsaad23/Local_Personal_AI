@@ -1,0 +1,47 @@
+[
+  {
+    "model_id": "llama3.1:8b-instruct-q4_K_M",
+    "task_id": "weather",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 11.521,
+    "raw_call": "{\"name\": \"get_weather\", \"args\": {\"units\": \"fahrenheit\", \"city\": \"Dubai\"}}"
+  },
+  {
+    "model_id": "llama3.1:8b-instruct-q4_K_M",
+    "task_id": "calculator",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 3.166,
+    "raw_call": "{\"name\": \"calculate\", \"args\": {\"expression\": \"1847 * 293\"}}"
+  },
+  {
+    "model_id": "llama3.1:8b-instruct-q4_K_M",
+    "task_id": "search",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 3.22,
+    "raw_call": "{\"name\": \"search_papers\", \"args\": {\"query\": \"retrieval augmented generation\", \"max_results\": 10}}"
+  },
+  {
+    "model_id": "llama3.1:8b-instruct-q4_K_M",
+    "task_id": "calendar",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 3.895,
+    "raw_call": "{\"name\": \"create_event\", \"args\": {\"title\": \"Project Sync\", \"attendees\": [\"alice@company.com\"], \"datetime_iso\": \"2024-01-01T14:00:00+08:00\"}}"
+  },
+  {
+    "model_id": "llama3.1:8b-instruct-q4_K_M",
+    "task_id": "email",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 3.509,
+    "raw_call": "{\"name\": \"send_email\", \"args\": {\"to\": \"bob@example.com\", \"body\": \"This is a quarterly report.\", \"subject\": \"Quarterly Report\"}}"
+  }
+]

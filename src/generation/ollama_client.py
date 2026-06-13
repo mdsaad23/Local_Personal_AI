@@ -100,7 +100,23 @@ async def stream_response(
                     metrics["eval_count"] = eval_count
                     metrics["prompt_eval_count"] = chunk.get("prompt_eval_count", 0)
                     if eval_duration_ns > 0:
-                        metrics["tgs"] = eval_count / (eval_duration_ns / 1e9)
+                        metrics["tgs"] = round(eval_count / (eval_duration_ns / 1e9), 1)
+
+                    # Fetch memory usage info from Ollama
+                    try:
+                        ps_resp = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
+                        if ps_resp.status_code == 200:
+                            ps_data = ps_resp.json()
+                            for m in ps_data.get("models", []):
+                                if m.get("name") == model or m.get("model") == model:
+                                    vram = m.get("size_vram", 0)
+                                    total_size = m.get("size", 0)
+                                    metrics["vram_bytes"] = vram
+                                    metrics["ram_bytes"] = max(0, total_size - vram)
+                                    break
+                    except Exception as exc:
+                        logger.warning(f"Failed to fetch model memory metrics: {exc}")
+
                     yield "", metrics
                     return
 

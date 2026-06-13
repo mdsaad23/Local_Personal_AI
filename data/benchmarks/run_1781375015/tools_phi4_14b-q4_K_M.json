@@ -1,0 +1,47 @@
+[
+  {
+    "model_id": "phi4:14b-q4_K_M",
+    "task_id": "weather",
+    "tool_supported": false,
+    "correct_fn": false,
+    "correct_args": false,
+    "latency_s": 2.238,
+    "raw_call": "Client error '400 Bad Request' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+  },
+  {
+    "model_id": "phi4:14b-q4_K_M",
+    "task_id": "calculator",
+    "tool_supported": false,
+    "correct_fn": false,
+    "correct_args": false,
+    "latency_s": 2.232,
+    "raw_call": "Client error '400 Bad Request' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+  },
+  {
+    "model_id": "phi4:14b-q4_K_M",
+    "task_id": "search",
+    "tool_supported": false,
+    "correct_fn": false,
+    "correct_args": false,
+    "latency_s": 2.24,
+    "raw_call": "Client error '400 Bad Request' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+  },
+  {
+    "model_id": "phi4:14b-q4_K_M",
+    "task_id": "calendar",
+    "tool_supported": false,
+    "correct_fn": false,
+    "correct_args": false,
+    "latency_s": 2.261,
+    "raw_call": "Client error '400 Bad Request' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+  },
+  {
+    "model_id": "phi4:14b-q4_K_M",
+    "task_id": "email",
+    "tool_supported": false,
+    "correct_fn": false,
+    "correct_args": false,
+    "latency_s": 2.239,
+    "raw_call": "Client error '400 Bad Request' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+  }
+]

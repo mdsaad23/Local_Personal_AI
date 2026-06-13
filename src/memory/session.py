@@ -7,6 +7,7 @@ extraction.
 """
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 import time
@@ -56,6 +57,10 @@ def _init_db() -> None:
             conn.execute("ALTER TABLE messages ADD COLUMN has_image INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
+        try:
+            conn.execute("ALTER TABLE messages ADD COLUMN metrics TEXT")
+        except sqlite3.OperationalError:
+            pass
 
 
 _init_db()
@@ -73,12 +78,13 @@ def new_session() -> str:
     return sid
 
 
-def add_message(session_id: str, role: str, content: str, has_image: bool = False) -> None:
+def add_message(session_id: str, role: str, content: str, has_image: bool = False, metrics: dict[str, Any] | None = None) -> None:
     """Append a message to a session. Auto-sets session title from first user message."""
     with _get_conn() as conn:
+        metrics_str = json.dumps(metrics) if metrics else None
         conn.execute(
-            "INSERT INTO messages (session_id, role, content, has_image, timestamp) VALUES (?, ?, ?, ?, ?)",
-            (session_id, role, content, int(has_image), time.time()),
+            "INSERT INTO messages (session_id, role, content, has_image, metrics, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+            (session_id, role, content, int(has_image), metrics_str, time.time()),
         )
         conn.execute(
             "UPDATE sessions SET turn_count = turn_count + 1 WHERE session_id = ?",
@@ -101,11 +107,24 @@ def get_messages(session_id: str) -> list[dict[str, Any]]:
     """Return all messages for a session, ordered by timestamp."""
     with _get_conn() as conn:
         rows = conn.execute(
-            "SELECT role, content, has_image, timestamp FROM messages "
+            "SELECT role, content, has_image, metrics, timestamp FROM messages "
             "WHERE session_id = ? ORDER BY timestamp",
             (session_id,),
         ).fetchall()
-    return [dict(r) for r in rows]
+        
+    messages = []
+    for r in rows:
+        d = dict(r)
+        if d.get("metrics"):
+            try:
+                d["metrics"] = json.loads(d["metrics"])
+            except Exception:
+                d["metrics"] = None
+        else:
+            d.pop("metrics", None)
+        messages.append(d)
+        
+    return messages
 
 
 def get_all_sessions() -> list[dict[str, Any]]:

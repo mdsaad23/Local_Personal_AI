@@ -1,0 +1,47 @@
+[
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "weather",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 31.163,
+    "raw_call": "{\"name\": \"get_weather\", \"args\": {\"city\": \"Dubai\"}}"
+  },
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "calculator",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 4.59,
+    "raw_call": "{\"name\": \"calculate\", \"args\": {\"expression\": \"1847 * 293\"}}"
+  },
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "search",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 6.942,
+    "raw_call": "{\"name\": \"search_papers\", \"args\": {\"query\": \"retrieval augmented generation\"}}"
+  },
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "calendar",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 31.393,
+    "raw_call": "{\"name\": \"create_event\", \"args\": {\"attendees\": [\"alice@company.com\"], \"datetime_iso\": \"2025-01-25T14:00:00\", \"title\": \"Project Sync\"}}"
+  },
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "email",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 16.852,
+    "raw_call": "{\"name\": \"send_email\", \"args\": {\"body\": \"Here is the short summary of the quarterly report.\", \"subject\": \"Quarterly Report\", \"to\": \"bob@example.com\"}}"
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "weather",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 27.279,
+    "raw_call": "{\"name\": \"get_weather\", \"args\": {\"city\": \"Dubai\"}}"
+  },
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "calculator",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 4.153,
+    "raw_call": "{\"name\": \"calculate\", \"args\": {\"expression\": \"1847 * 293\"}}"
+  },
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "search",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 4.166,
+    "raw_call": "{\"name\": \"search_papers\", \"args\": {\"query\": \"retrieval augmented generation\"}}"
+  },
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "calendar",
+    "tool_supported": false,
+    "correct_fn": false,
+    "correct_args": false,
+    "latency_s": 32.214,
+    "raw_call": "timed out"
+  },
+  {
+    "model_id": "gemma4:26b-a4b-it-q4_K_M",
+    "task_id": "email",
+    "tool_supported": true,
+    "correct_fn": true,
+    "correct_args": true,
+    "latency_s": 10.014,
+    "raw_call": "{\"name\": \"send_email\", \"args\": {\"body\": \"Please find the attached quarterly report summary for your review.\", \"subject\": \"Quarterly Report\", \"to\": \"bob@example.com\"}}"
+  }
+]
