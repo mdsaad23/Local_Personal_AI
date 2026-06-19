@@ -68,7 +68,7 @@ def _build_haystack(target_tokens: int, needle_position: float) -> str:
     return f"{pre}\n\n{NEEDLE}\n\n{post}"
 
 
-def _query_ollama(model_id: str, context: str, timeout_s: int = 120) -> tuple[str, float]:
+def _query_ollama(model_id: str, context: str, timeout_s: int = 180) -> tuple[str, float]:
     """Return (answer, ttft_s)."""
     payload = {
         "model": model_id,
@@ -87,7 +87,12 @@ def _query_ollama(model_id: str, context: str, timeout_s: int = 120) -> tuple[st
             },
         ],
         "stream": False,
-        "options": {"temperature": 0, "num_predict": 60},
+        # Generous cap: reasoning models (DeepSeek-R1, etc.) spend tokens on a
+        # <think> block before the actual answer — Ollama reports that as a
+        # separate `thinking` field, but if num_predict is exhausted first,
+        # `message.content` comes back empty. 2048 leaves room for CoT + the
+        # one-line answer this task expects.
+        "options": {"temperature": 0, "num_predict": 2048},
     }
     t0 = time.perf_counter()
     try:

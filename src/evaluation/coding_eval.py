@@ -19,9 +19,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-import subprocess
-import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -61,7 +60,7 @@ def _get_problems(dataset: str, n: int) -> dict:
     return {k: all_problems[k] for k in sorted_ids}
 
 
-def _generate_solution(model_id: str, prompt: str, timeout_s: int = 60) -> str:
+def _generate_solution(model_id: str, prompt: str, timeout_s: int = 120) -> str:
     """Ask Ollama to complete a HumanEval function. Returns the full solution string."""
     payload = {
         "model": model_id,
@@ -94,20 +93,53 @@ def _generate_solution(model_id: str, prompt: str, timeout_s: int = 60) -> str:
         return prompt + "\n    pass\n"
 
 
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_FENCE_RE = re.compile(r"```(?:python)?\s*\n(.*?)```", re.DOTALL | re.IGNORECASE)
+_DEF_RE   = re.compile(r"^def \w+\(", re.MULTILINE)
+
+
+def _is_valid_python(code: str) -> bool:
+    # compile() catches errors ast.parse() doesn't, e.g. `return` outside a
+    # function — common when a body-only completion loses its indentation.
+    try:
+        compile(code, "<solution>", "exec")
+        return True
+    except SyntaxError:
+        return False
+
+
 def _clean_solution(raw: str, original_prompt: str) -> str:
     """
-    Strip markdown fences and preamble. Return the prompt + body so EvalPlus
-    gets a complete, executable function.
+    Strip <think> traces and markdown fences, then locate the actual code.
+    Return the prompt + body so EvalPlus gets a complete, executable function.
+
+    Reasoning models often narrate a solution in prose instead of (or around)
+    code — falls back to a `pass` stub (fails tests but is at least valid
+    Python) rather than handing EvalPlus a syntax error.
     """
-    # Remove markdown fences
-    raw = re.sub(r"```(?:python)?", "", raw, flags=re.IGNORECASE)
-    raw = raw.strip()
+    # Some Ollama templates leave <think>...</think> in `content` verbatim.
+    raw = _THINK_RE.sub("", raw).strip()
 
-    # If the model returned only the body (no def line), prepend the prompt
-    if not raw.startswith("def ") and "def " not in raw[:50]:
-        return original_prompt + "\n" + raw
+    # Reasoning models often narrate first, then place the final answer in a
+    # fenced code block — prefer the last one if present.
+    fences = _FENCE_RE.findall(raw)
+    if fences:
+        raw = fences[-1].strip()
 
-    return raw
+    # A top-level `def` likely means the model returned a complete, self-
+    # contained redefinition — drop any leading prose before it.
+    match = _DEF_RE.search(raw)
+    if match:
+        candidate = raw[match.start():]
+        if _is_valid_python(candidate):
+            return candidate
+
+    # Otherwise treat raw as the function body to append to the prompt.
+    candidate = original_prompt + "\n" + raw
+    if _is_valid_python(candidate):
+        return candidate
+
+    return original_prompt + "\n    pass\n"
 
 
 def _save_solutions(problems: dict, solutions: dict, out_path: Path) -> None:
@@ -117,42 +149,74 @@ def _save_solutions(problems: dict, solutions: dict, out_path: Path) -> None:
             f.write(json.dumps({"task_id": task_id, "solution": solution}) + "\n")
 
 
-def _run_evalplus_evaluate(dataset: str, samples_path: Path) -> float:
-    """Call evalplus.evaluate via subprocess. Returns pass@1 (0.0–1.0)."""
-    cmd = [
-        sys.executable, "-m", "evalplus.evaluate",
-        "--dataset", dataset,
-        "--samples", str(samples_path),
-    ]
+def _evaluate_solutions_inline(
+    problems_subset: dict,
+    solutions: dict,
+    dataset: str = "humaneval",
+) -> float:
+    """
+    Evaluate solutions using evalplus internals directly (no subprocess).
+    Works on Windows — avoids evalplus.evaluate which requires POSIX 'resource' module.
+    Uses the cached ground-truth expected outputs; only runs untrusted_check per problem.
+    """
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        output = result.stdout + result.stderr
-        return _parse_pass_at_1(output)
-    except subprocess.TimeoutExpired:
-        logger.error("evalplus.evaluate timed out")
-        return 0.0
+        from evalplus.eval import PASS
+        from evalplus.evaluate import check_correctness, get_groundtruth
+        if dataset == "humaneval":
+            from evalplus.data import get_human_eval_plus, get_human_eval_plus_hash
+            all_problems = get_human_eval_plus()
+            dataset_hash = get_human_eval_plus_hash()
+            tasks_only_output_not_none: list = []
+        elif dataset == "mbpp":
+            from evalplus.data import get_mbpp_plus, get_mbpp_plus_hash
+            from evalplus.eval._special_oracle import MBPP_OUTPUT_NOT_NONE_TASKS
+            all_problems = get_mbpp_plus()
+            dataset_hash = get_mbpp_plus_hash()
+            tasks_only_output_not_none = MBPP_OUTPUT_NOT_NONE_TASKS
+        else:
+            raise ValueError(f"Unknown dataset: {dataset}")
+
+        expected_output = get_groundtruth(all_problems, dataset_hash, tasks_only_output_not_none)
     except Exception as exc:
-        logger.error("evalplus.evaluate failed: %s", exc)
+        logger.error("Inline evaluator setup failed: %s", exc)
         return 0.0
 
+    passed = 0
+    total = len(solutions)
 
-def _parse_pass_at_1(output: str) -> float:
-    """Extract pass@1 from evalplus output lines like 'pass@1: 0.732'."""
-    for line in output.split("\n"):
-        low = line.lower()
-        if "pass@1" in low or "pass_at_1" in low:
-            # Try to find a float after colon or equals
-            match = re.search(r"[:=]\s*([\d.]+)", line)
-            if match:
-                val = float(match.group(1))
-                return val if val <= 1.0 else val / 100.0
-    return 0.0
+    for task_id, solution in solutions.items():
+        if task_id not in all_problems:
+            logger.warning("Task %s not in full dataset — skipping", task_id)
+            total -= 1
+            continue
+
+        problem = all_problems[task_id]
+        gt = expected_output[task_id]
+
+        try:
+            result = check_correctness(
+                dataset=dataset,
+                completion_id=0,
+                problem=problem,
+                solution=solution,
+                expected_output=gt,
+                identifier=f"{task_id}/0",
+            )
+            base_ok = result["base"][0] == PASS
+            plus_ok = result.get("plus", (PASS,))[0] == PASS
+            if base_ok and plus_ok:
+                passed += 1
+        except Exception as exc:
+            logger.warning("check_correctness failed for %s: %s", task_id, exc)
+
+    return passed / max(total, 1)
 
 
 def run_coding_eval(
     model_id: str,
     dataset: str = "humaneval",
     n_problems: int = 20,
+    progress: "Callable[[int, int, str], None] | None" = None,
 ) -> CodingResult:
     """
     Run EvalPlus coding benchmark for one model.
@@ -161,6 +225,7 @@ def run_coding_eval(
         model_id:   Ollama model tag (e.g. "qwen3:14b-q4_K_M")
         dataset:    "humaneval" or "mbpp"
         n_problems: how many problems to sample (default 20 for speed)
+        progress:   optional callback(step, total, label) for live UI updates
     """
     t0 = time.perf_counter()
 
@@ -179,15 +244,20 @@ def run_coding_eval(
 
     logger.info("Coding eval | %s | %s | %d problems", model_id, dataset, len(problems))
 
+    n_total = len(problems)
     solutions: dict[str, str] = {}
     for i, (task_id, problem) in enumerate(problems.items()):
-        logger.info("  [%d/%d] %s", i + 1, len(problems), task_id)
+        logger.info("  [%d/%d] %s", i + 1, n_total, task_id)
+        if progress:
+            progress(i, n_total, f"problem {i + 1}/{n_total}: {task_id}")
         solution = _generate_solution(model_id, problem["prompt"])
         solutions[task_id] = solution
+    if progress:
+        progress(n_total, n_total, "evaluating solutions")
 
     _save_solutions(problems, solutions, solutions_path)
 
-    pass_at_1 = _run_evalplus_evaluate(dataset, solutions_path)
+    pass_at_1 = _evaluate_solutions_inline(problems, solutions, dataset)
     solved = round(pass_at_1 * len(problems))
 
     result = CodingResult(

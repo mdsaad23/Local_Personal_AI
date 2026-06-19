@@ -26,12 +26,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import httpx
 import yaml
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from config.settings import BENCHMARKS_DIR
+from config.settings import BENCHMARKS_DIR, OLLAMA_BASE_URL
 
 router = APIRouter(tags=["benchmark"])
 logger = logging.getLogger(__name__)
@@ -159,27 +160,34 @@ def _run_benchmark(suites: list[str], model_ids: list[str], output_dir: Path) ->
     _log(f"Starting benchmark: suites={suites} models={len(models)}")
 
     try:
-        for suite in suites:
+        # Model-major order: run every suite for one model, unload it, then
+        # move on. Each model is loaded into VRAM exactly once instead of
+        # once per suite. This also avoids the failure mode where a model
+        # from an earlier suite is still resident (within its keep_alive
+        # window) when the next suite loads another large model — on a
+        # 16GB card that overlap previously exhausted VRAM/RAM and crashed
+        # the GPU driver and llama-server mid-run.
+        for model in models:
             if _state.stop_requested:
                 _log("Stop requested — halting.")
                 break
 
+            model_id   = model["id"]
+            model_name = model.get("name", model_id)
             with _lock:
-                _state.current_suite = suite
-            _log(f"━━━ Suite: {suite.upper()} ━━━")
+                _state.current_model = model_id
+            _log(f"━━━ Model: {model_name} ━━━")
 
-            for model in models:
+            for suite in suites:
                 if _state.stop_requested:
                     break
 
-                model_id   = model["id"]
-                model_name = model.get("name", model_id)
                 with _lock:
-                    _state.current_model = model_id
+                    _state.current_suite = suite
                     _state.current_step = 0
                     _state.current_total = 0
                     _state.current_label = f"{suite}: {model_name}"
-                _log(f"Model: {model_name}")
+                _log(f"  Suite: {suite.upper()}")
 
                 try:
                     _run_one(suite, model, output_dir)
@@ -191,6 +199,11 @@ def _run_benchmark(suites: list[str], model_ids: list[str], output_dir: Path) ->
                     _state.completed_models += 1
                     _state.current_step = 0
                     _state.current_total = 0
+
+            _unload_model(model_id)
+            # Persist after every model so a crash mid-run still leaves a
+            # usable summary.json with everything completed so far.
+            _write_summary(output_dir)
 
         _write_summary(output_dir)
         with _lock:
@@ -209,6 +222,22 @@ def _run_benchmark(suites: list[str], model_ids: list[str], output_dir: Path) ->
             _state.completed = True
         _log(f"FATAL: {exc}")
         logger.exception("Benchmark runner crashed")
+
+
+def _unload_model(model_id: str) -> None:
+    """Evict a model from VRAM immediately (keep_alive=0) before loading the
+    next one, instead of waiting for Ollama's keep_alive timeout to expire."""
+    try:
+        httpx.post(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            json={"model": model_id, "keep_alive": 0},
+            timeout=30,
+        )
+        _log(f"  unloaded {model_id}")
+        # Give the GPU driver a moment to release VRAM before the next load.
+        time.sleep(2)
+    except Exception as exc:
+        _log(f"  WARN: could not unload {model_id}: {exc}")
 
 
 def _run_one(suite: str, model: dict, output_dir: Path) -> None:
@@ -249,7 +278,7 @@ def _run_one(suite: str, model: dict, output_dir: Path) -> None:
 
     elif suite == "coding":
         from src.evaluation.coding_eval import run_coding_eval, results_to_dicts
-        result = run_coding_eval(model_id, n_problems=20)
+        result = run_coding_eval(model_id, n_problems=20, progress=_set_progress)
         _save_json(output_dir / f"coding_{slug}.json", results_to_dicts([result]))
         _add_row("coding", {
             "model_id": model_id, "model_name": model_name,
@@ -260,8 +289,10 @@ def _run_one(suite: str, model: dict, output_dir: Path) -> None:
 
     elif suite == "needle":
         from src.evaluation.needle_eval import run_needle
+        from config.settings import NEEDLE_MAX_TOKENS
+        max_tokens = model.get("context_window", NEEDLE_MAX_TOKENS)
         summaries = run_needle(
-            model_id, output_dir, log=_log,
+            model_id, output_dir, max_tokens=max_tokens, log=_log,
             progress=_set_progress, should_stop=_should_stop,
         )
         _save_json(output_dir / f"needle_summary_{slug}.json", summaries)

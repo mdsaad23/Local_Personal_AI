@@ -236,6 +236,7 @@ def run_needle(
     output_dir: Path,
     *,
     corpora: list[str] | None = None,
+    max_tokens: int = NEEDLE_MAX_TOKENS,
     log: LogFn | None = None,
     progress: ProgressFn | None = None,
     should_stop: StopFn | None = None,
@@ -250,6 +251,7 @@ def run_needle(
             continue
         summaries.append(run_needle_corpus(
             model_id, corpus, output_dir,
+            max_tokens=max_tokens,
             log=log, progress=progress, should_stop=should_stop,
         ))
     return summaries

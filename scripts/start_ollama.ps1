@@ -13,6 +13,10 @@ $env:GGML_VK_VISIBLE_DEVICES   = "0"   # Use only Vulkan0 (RX 9070 XT) — exclu
 # source files into context (http_server ≈14K tokens); the default 4K would
 # truncate them. 32K fits http_server with headroom. Raise for the jquery corpus.
 $env:OLLAMA_CONTEXT_LENGTH     = "32768"
+# Never keep more than one model resident in VRAM at once. With a 16GB card,
+# two loaded models (e.g. a 14B + a 26B MoE) overflow VRAM and system RAM,
+# which previously caused a GPU driver TDR and a llama-server crash mid-benchmark.
+$env:OLLAMA_MAX_LOADED_MODELS  = "1"
 
 # Also write to registry in case they got cleared
 [System.Environment]::SetEnvironmentVariable("OLLAMA_VULKAN",            "1",                "User")
@@ -51,6 +55,7 @@ $env_table["HSA_OVERRIDE_GFX_VERSION"] = "12.0.1"
 $env_table["OLLAMA_MODELS"]            = "D:\ollama_models"
 $env_table["GGML_VK_VISIBLE_DEVICES"]  = "0"
 $env_table["OLLAMA_CONTEXT_LENGTH"]    = "32768"
+$env_table["OLLAMA_MAX_LOADED_MODELS"] = "1"
 
 Start-Process `
     "C:\Users\saadm\AppData\Local\Programs\Ollama\ollama.exe" `

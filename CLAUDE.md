@@ -3,7 +3,7 @@
 ## Overview
 Fully offline personal knowledge base + AI assistant. Local LLMs only (Ollama). Zero cloud for inference. Phase 1 of a long-term agentic assistant — future phases add email, calendar, WhatsApp, Telegram with action execution. Part of Mohammad Saad's 17-project AI engineering portfolio.
 
-Owner: Mohammad Saad — AI engineering + procurement. LinkedIn posts follow: business problem → technical solution → measured result.
+Owner: Mohammad Saad — AI engineer / AI leader (procurement background as prior experience, not the framing). LinkedIn posts follow: CTO-recognizable problem → technical solution → measured result.
 
 ---
 
@@ -189,7 +189,7 @@ Notes: [raw observations, surprises, failures]
 - [ ] Full offline test passed
 
 ### Bridge Rule (non-negotiable)
-Every post opens with a business problem a CPO understands. Technical solution follows. A specific number closes. Never purely technical. Never purely strategic.
+Every post opens with a problem a CTO / engineering leader recognizes (build vs. buy, infrastructure cost, technical risk, talent/capability). A technical solution follows in depth. A specific number closes. Never purely technical. Never purely strategic. Mohammad is positioned as an AI engineer / AI leader — procurement experience is background credibility, not the lens.
 
 ### Daily format
 | Day | Format |

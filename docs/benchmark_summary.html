@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local LLM Benchmark — P04A</title>
+  <style>
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --green:    #3fb950;
+      --yellow:   #d29922;
+      --red:      #f85149;
+      --blue:     #58a6ff;
+      --purple:   #bc8cff;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      line-height: 1.65;
+      padding: 2.5rem 1rem 4rem;
+    }
+    .container { max-width: 1080px; margin: 0 auto; }
+
+    /* ── Header ── */
+    .header { text-align: center; margin-bottom: 3rem; }
+    .header h1 {
+      font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .header .subtitle { color: var(--muted); margin-top: 0.4rem; font-size: 1rem; }
+    .meta-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.75rem; margin-top: 1.75rem;
+    }
+    .meta-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.85rem 1rem; text-align: center;
+    }
+    .meta-card .label {
+      font-size: 0.7rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .meta-card .value {
+      font-size: 1rem; font-weight: 700; margin-top: 0.2rem; color: var(--blue);
+    }
+
+    /* ── Section ── */
+    .section { margin-bottom: 3.5rem; }
+    .section-header {
+      display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+      margin-bottom: 1rem; padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title { font-size: 1.25rem; font-weight: 700; }
+    .section-num {
+      width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .badge {
+      font-size: 0.72rem; padding: 0.2rem 0.65rem; border-radius: 99px; font-weight: 600;
+    }
+    .badge-green  { background: rgba(63,185,80,.15);  color: var(--green);  border: 1px solid rgba(63,185,80,.3); }
+    .badge-yellow { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
+    .badge-red    { background: rgba(248,81,73,.15);  color: var(--red);    border: 1px solid rgba(248,81,73,.3); }
+    .badge-blue   { background: rgba(88,166,255,.15); color: var(--blue);   border: 1px solid rgba(88,166,255,.3); }
+
+    /* ── Insight box ── */
+    .insight {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 3px solid var(--blue); border-radius: 6px;
+      padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+      font-size: 0.875rem; color: var(--muted);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 2rem;
+    }
+    .insight p { margin: 0; }
+    .insight strong { color: var(--text); }
+    @media (max-width: 640px) { .insight { grid-template-columns: 1fr; } }
+
+    /* ── Table ── */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border); border-radius: 8px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    thead tr { background: var(--surface); }
+    th {
+      padding: 0.65rem 1rem; text-align: left;
+      font-size: 0.7rem; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--muted);
+      font-weight: 600; border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.025); }
+    .model-name { font-weight: 600; }
+    .tag { font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+    .score { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .s-great  { color: var(--green); }
+    .s-good   { color: var(--blue); }
+    .s-ok     { color: var(--yellow); }
+    .s-bad    { color: var(--red); }
+    .pill {
+      display: inline-flex; align-items: center;
+      padding: 0.15rem 0.55rem; border-radius: 4px;
+      font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+    }
+    .p-green  { background: rgba(63,185,80,.15);  color: var(--green); }
+    .p-blue   { background: rgba(88,166,255,.15); color: var(--blue); }
+    .p-yellow { background: rgba(210,153,34,.15); color: var(--yellow); }
+    .p-red    { background: rgba(248,81,73,.15);  color: var(--red); }
+    .p-muted  { background: rgba(139,148,158,.12);color: var(--muted); }
+
+    /* ── Bug callout ── */
+    .bug-box {
+      background: rgba(248,81,73,.07); border: 1px solid rgba(248,81,73,.3);
+      border-radius: 8px; padding: 1.25rem 1.5rem;
+    }
+    .bug-box h3 { color: var(--red); font-size: 0.95rem; margin-bottom: 0.6rem; }
+    .bug-box p  { font-size: 0.875rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .bug-box code {
+      background: rgba(255,255,255,.08); padding: 0.1rem 0.4rem; border-radius: 4px;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 0.82rem;
+      color: var(--text);
+    }
+    .fix-list { list-style: none; margin-top: 0.75rem; }
+    .fix-list li { font-size: 0.875rem; color: var(--muted); padding: 0.2rem 0; }
+    .fix-list li::before { content: "→ "; color: var(--green); font-weight: 700; }
+
+    /* ── Divider ── */
+    .divider { height: 1px; background: var(--border); margin: 2.5rem 0; }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center; margin-top: 3rem; padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 0.8rem; line-height: 1.8;
+    }
+    .footer a { color: var(--blue); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ── Header ──────────────────────────────────────── -->
+  <div class="header">
+    <h1>Local LLM Benchmark — P04A</h1>
+    <p class="subtitle">11 models &nbsp;·&nbsp; 4 evaluation suites &nbsp;·&nbsp; Fully offline &nbsp;·&nbsp; AMD Radeon RX 9070 XT (Vulkan · 221.5 tok/s)</p>
+    <div class="meta-grid">
+      <div class="meta-card">
+        <div class="label">Run ID</div>
+        <div class="value">1781563563</div>
+      </div>
+      <div class="meta-card">
+        <div class="label">Date</div>
+        <div class="value">Jun 16, 2026</div>
+      </div>
+      <div class="meta-card">
+        <div class="label">Models</div>
+        <div class="value">11</div>
+      </div>
+      <div class="meta-card">
+        <div class="label">Suites</div>
+        <div class="value">4</div>
+      </div>
+      <div class="meta-card">
+        <div class="label">GPU</div>
+        <div class="value">RX 9070 XT · 16 GB</div>
+      </div>
+      <div class="meta-card">
+        <div class="label">Runtime</div>
+        <div class="value">~4 hours</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 1. NIAH ──────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <h2 class="section-title">Long-Context Recall (NIAH)</h2>
+      <span class="badge badge-green">6 / 11 models hit 100%</span>
+    </div>
+
+    <div class="insight">
+      <p><strong>What it tests:</strong> 15 facts ("needles") hidden at randomised positions inside a long document. The model must retrieve all 15. Tests whether recall degrades at specific positions — beginning, middle, or end — under a large context window.</p>
+      <p><strong>Why it matters:</strong> A knowledge-base assistant that loses facts from the middle of a document is unreliable for legal review, contract analysis, or technical Q&amp;A. This is the minimum bar for RAG use cases. Position-based failure is invisible in short-context evals.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Params</th>
+            <th>Quant</th>
+            <th>Recall</th>
+            <th>Found</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="model-name">Granite 4 7B-A1B-H <span class="tag">MoE · 1B active</span></td>
+            <td>7 B</td>
+            <td>default</td>
+            <td><span class="score s-great">100%</span></td>
+            <td><span class="pill p-green">15 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Llama 3.1 8B</td>
+            <td>8 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-great">100%</span></td>
+            <td><span class="pill p-green">15 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Qwen2.5-Coder 7B</td>
+            <td>7 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-great">100%</span></td>
+            <td><span class="pill p-green">15 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Gemma 4 12B</td>
+            <td>12 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-great">100%</span></td>
+            <td><span class="pill p-green">15 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Qwen 3 14B <span class="tag">★ production</span></td>
+            <td>14 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-great">100%</span></td>
+            <td><span class="pill p-green">15 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Gemma 4 26B <span class="tag">MoE · 4B active</span></td>
+            <td>26 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-great">100%</span></td>
+            <td><span class="pill p-green">15 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Llama 3.1 8B</td>
+            <td>8 B</td>
+            <td>Q8_0</td>
+            <td><span class="score s-good">93%</span></td>
+            <td><span class="pill p-blue">14 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">DeepSeek-R1 8B <span class="tag">Llama distill</span></td>
+            <td>8 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-good">87%</span></td>
+            <td><span class="pill p-blue">13 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Llama 3.2 3B</td>
+            <td>3 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-ok">80%</span></td>
+            <td><span class="pill p-yellow">12 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Phi-4 14B</td>
+            <td>14 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-ok">80%</span></td>
+            <td><span class="pill p-yellow">12 / 15</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Mistral 7B v0.3</td>
+            <td>7 B</td>
+            <td>Q4_K_M</td>
+            <td><span class="score s-bad">67%</span></td>
+            <td><span class="pill p-red">10 / 15</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── 2. Tool Calling ──────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <h2 class="section-title">Tool Calling</h2>
+      <span class="badge badge-yellow">3 / 11 scored 0 — Ollama tag limitation</span>
+    </div>
+
+    <div class="insight">
+      <p><strong>What it tests:</strong> 5 structured function-calling tasks. Each model must select the correct function and supply correctly-typed arguments via the Ollama <code>/api/chat</code> tools API. Tests whether the model tag exposes a function-calling schema at all.</p>
+      <p><strong>Why it matters:</strong> Tool calling is the primitive that turns a chat model into an AI agent. Without it, every action — calendar lookup, file operation, API call — requires the model to describe the action in prose, which your code then has to parse. For Phase 2 of this project (email, calendar, Telegram), tool calling is a hard requirement, not a nice-to-have.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Params</th>
+            <th>Tool Support</th>
+            <th>Fn Accuracy</th>
+            <th>Arg Accuracy</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="model-name">Llama 3.2 3B</td>
+            <td>3 B</td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="pill p-green">Native</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Granite 4 7B-A1B-H</td>
+            <td>7 B</td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="pill p-green">Native</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Mistral 7B v0.3</td>
+            <td>7 B</td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="pill p-green">Native</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Llama 3.1 8B</td>
+            <td>8 B</td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="pill p-green">Native</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Gemma 4 12B</td>
+            <td>12 B</td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="pill p-green">Native</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Llama 3.1 8B <span class="tag">Q8_0</span></td>
+            <td>8 B</td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="pill p-green">Native</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Qwen 3 14B <span class="tag">★ production</span></td>
+            <td>14 B</td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="score s-great">5 / 5</span></td>
+            <td><span class="pill p-green">Native</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Gemma 4 26B <span class="tag">MoE · 4B active</span></td>
+            <td>26 B</td>
+            <td><span class="score s-good">4 / 5</span></td>
+            <td><span class="score s-good">4 / 5</span></td>
+            <td><span class="score s-good">4 / 5</span></td>
+            <td><span class="pill p-blue">Native (1 miss)</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Qwen2.5-Coder 7B</td>
+            <td>7 B</td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="pill p-red">Non-standard format</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">DeepSeek-R1 8B <span class="tag">Llama distill</span></td>
+            <td>8 B</td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="pill p-red">No native schema</span></td>
+          </tr>
+          <tr>
+            <td class="model-name">Phi-4 14B</td>
+            <td>14 B</td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="score s-bad">0 / 5</span></td>
+            <td><span class="pill p-red">Template missing</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:0.9rem; font-size:0.8rem; color:var(--muted); padding-left:0.25rem;">
+      ℹ &nbsp;<strong style="color:var(--text)">Note:</strong> All three zeros are Ollama tag / chat-template mismatches — not model capability failures.
+      Community-patched variants exist: <code>MFDoom/deepseek-r1-tool-calling</code>, <code>zac/phi4-tools</code>.
+      Qwen2.5-Coder uses a non-standard <code>&lt;tool_call&gt;</code> XML schema not compatible with the Ollama tools API.
+    </div>
+  </div>
+
+  <!-- ── 3. Positional Code Recall ─────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <h2 class="section-title">Positional Code Recall (codeneedle)</h2>
+      <span class="badge badge-yellow">Gemma 4 26B: 82% &nbsp;·&nbsp; Next best: 36%</span>
+    </div>
+
+    <div class="insight">
+      <p><strong>What it tests:</strong> Given a full codebase (~5K tokens, <code>http_server</code> corpus), reproduce specific named functions from their position in the file. Harder than NIAH: models must retain syntactic structure, indentation, and logic — not just a fact string — across a long code context.</p>
+      <p><strong>Why it matters:</strong> Code assistants (PR review, refactoring, explain-codebase) must recall exact implementation details. A model with 9% positional code recall will hallucinate function bodies and generate broken refactors even when the source is in its context window. This is the test that separates general recall from code-specific memory.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Params</th>
+            <th>Pass Rate</th>
+            <th>Avg Line Recall</th>
+            <th>Functions Passed</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="model-name">Gemma 4 26B <span class="tag">MoE · 4B active</span></td>
+            <td>26 B</td>
+            <td><span class="score s-great">82%</span></td>
+            <td><span class="score s-great">76%</span></td>
+            <td><span class="pill p-green">9 / 11</span></td>
+            <td>1 errored</td>
+          </tr>
+          <tr>
+            <td class="model-name">Qwen2.5-Coder 7B</td>
+            <td>7 B</td>
+            <td><span class="score s-ok">36%</span></td>
+            <td><span class="score s-ok">37%</span></td>
+            <td><span class="pill p-yellow">4 / 11</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="model-name">DeepSeek-R1 8B <span class="tag">Llama distill</span></td>
+            <td>8 B</td>
+            <td><span class="score s-ok">33%</span></td>
+            <td><span class="score s-ok">33%</span></td>
+            <td><span class="pill p-yellow">1 / 3</span></td>
+            <td>2 errored</td>
+          </tr>
+          <tr>
+            <td class="model-name">Qwen 3 14B <span class="tag">★ production</span></td>
+            <td>14 B</td>
+            <td><span class="score s-ok">27%</span></td>
+            <td><span class="score s-ok">37%</span></td>
+            <td><span class="pill p-yellow">3 / 11</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="model-name">Gemma 4 12B</td>
+            <td>12 B</td>
+            <td><span class="score s-bad">18%</span></td>
+            <td><span class="score s-bad">23%</span></td>
+            <td><span class="pill p-red">2 / 11</span></td>
+            <td>4 errored</td>
+          </tr>
+          <tr>
+            <td class="model-name">Phi-4 14B</td>
+            <td>14 B</td>
+            <td><span class="score s-bad">9%</span></td>
+            <td><span class="score s-bad">17%</span></td>
+            <td><span class="pill p-red">1 / 11</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="model-name">Granite 4 7B-A1B-H</td>
+            <td>7 B</td>
+            <td><span class="score s-bad">9%</span></td>
+            <td><span class="score s-bad">20%</span></td>
+            <td><span class="pill p-red">1 / 11</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="model-name">Llama 3.2 3B</td>
+            <td>3 B</td>
+            <td><span class="score s-bad">9%</span></td>
+            <td><span class="score s-bad">7%</span></td>
+            <td><span class="pill p-red">1 / 11</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="model-name">Llama 3.1 8B</td>
+            <td>8 B</td>
+            <td><span class="score s-bad">9%</span></td>
+            <td><span class="score s-bad">14%</span></td>
+            <td><span class="pill p-red">1 / 11</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="model-name">Llama 3.1 8B <span class="tag">Q8_0</span></td>
+            <td>8 B</td>
+            <td><span class="score s-bad">9%</span></td>
+            <td><span class="score s-bad">14%</span></td>
+            <td><span class="pill p-red">1 / 11</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="model-name">Mistral 7B v0.3</td>
+            <td>7 B</td>
+            <td><span class="score s-bad">0%</span></td>
+            <td><span class="score s-bad">9%</span></td>
+            <td><span class="pill p-red">0 / 11</span></td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── 4. Coding Eval ──────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <h2 class="section-title">Coding Benchmark — HumanEval+</h2>
+      <span class="badge badge-red">Results invalid — Windows harness bug</span>
+    </div>
+
+    <div class="insight">
+      <p><strong>What it tests:</strong> 20 Python function completions from HumanEval+ (EvalPlus). Each solution is executed against an extended test suite with 80× more tests than base HumanEval. Measures whether a model produces syntactically and semantically correct code — not just retrieval, but generation accuracy.</p>
+      <p><strong>Why it matters:</strong> pass@1 on HumanEval is the standard coding capability ceiling used across the industry. It answers: "if the model writes a function once, how often is it correct?" Directly relevant for any assistant used in a software engineering workflow.</p>
+    </div>
+
+    <div class="bug-box">
+      <h3>⚠  All 11 models scored 0 / 20 — harness bug, not model failure</h3>
+      <p>Solutions were generated and appear correct on manual inspection. The scoring step failed silently.</p>
+      <p>
+        <strong>Root cause:</strong> <code>evalplus.evaluate</code> v0.2.1 calls
+        <code>resource</code> inside each multiprocessing worker
+        (<code>evalplus/eval/utils.py:116</code>) for sandbox memory limiting.
+        <code>resource</code> is a POSIX-only module — it does not exist on Windows.
+        All worker processes crash with <code>ModuleNotFoundError: No module named 'resource'</code>,
+        producing empty subprocess output.
+        <code>_parse_pass_at_1()</code> then returns <code>0.0</code> on empty output, making
+        it appear as if every model solved zero problems.
+      </p>
+      <p><strong>Planned fixes:</strong></p>
+      <ul class="fix-list">
+        <li>Patch <code>reliability_guard</code> to skip <code>resource</code> on Windows — use <code>psutil</code> for memory monitoring or skip memory limits entirely</li>
+        <li>Route the <code>evalplus.evaluate</code> subprocess through WSL while keeping Ollama on Windows</li>
+        <li>Write a custom Windows-compatible executor that runs test cases without POSIX sandbox primitives</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Footer ──────────────────────────────────────── -->
+  <div class="footer">
+    <p>
+      <strong>P04A — Local AI Personal Assistant</strong><br>
+      All inference runs fully offline &nbsp;·&nbsp; Zero cloud API calls during evaluation<br>
+      AMD Radeon RX 9070 XT (RDNA 4) &nbsp;·&nbsp; Vulkan backend &nbsp;·&nbsp; 221.5 tok/s measured<br>
+      Python 3.12.10 &nbsp;·&nbsp; Ollama &nbsp;·&nbsp; evalplus 0.2.1 &nbsp;·&nbsp; Windows 11 Pro
+    </p>
+  </div>
+
+</div>
+</body>
+</html>

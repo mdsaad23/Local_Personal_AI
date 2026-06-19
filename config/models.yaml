@@ -1,6 +1,12 @@
 # Benchmark model matrix
 # Each entry defines one model variant to include in the benchmark run.
 # Pull all variants with: scripts/pull_models.ps1
+#
+# Order: smallest expected_vram_gb first, largest last. The benchmark runner
+# iterates this list in order (model-major), so this ordering loads the
+# smallest/fastest models first and saves the largest, riskiest model
+# (Gemma 4 26B MoE, ~14GB) for the very end to minimize the chance that an
+# OOM/driver crash early in the run blocks the rest of the matrix.
 
 benchmark_models:
 
@@ -11,16 +17,33 @@ benchmark_models:
     quant: "Q4_K_M"
     bits: 4
     expected_vram_gb: 2.5
+    context_window: 32768  # Ollama default num_ctx (model trained for 131072)
     notes: "Baseline - fastest, weakest reasoning"
 
-  - id: llama3.2:3b-instruct-q8_0
-    name: "Llama 3.2 3B Q8_0"
-    family: "Llama 3.2"
-    params_b: 3
-    quant: "Q8_0"
-    bits: 8
-    expected_vram_gb: 3.5
-    notes: "Near-lossless 3B ceiling"
+  # Granite 4 - hybrid mamba2/transformer MoE (~1B active / 7B total).
+  # IBM's instruction-following + tool-calling tuned model, directly relevant
+  # to the Phase 2/3 action-engine roadmap. A 2nd MoE architecture alongside
+  # Gemma 4 26B, but tiny by comparison.
+  - id: granite4:7b-a1b-h
+    name: "Granite 4 7B-A1B-H"
+    family: "Granite 4"
+    params_b: 7
+    active_params_b: 1
+    quant: "default"
+    expected_vram_gb: 4.5
+    moe: true
+    context_window: 32768  # Ollama default num_ctx (model trained for 1,048,576)
+    notes: "Hybrid mamba2 MoE, ~1B active. Tuned for instruction-following and tool calling."
+
+  - id: mistral:7b-instruct-v0.3-q4_K_M
+    name: "Mistral 7B v0.3 Q4_K_M"
+    family: "Mistral"
+    params_b: 7
+    quant: "Q4_K_M"
+    bits: 4
+    expected_vram_gb: 4.5
+    context_window: 32768  # = model's trained max (32768)
+    notes: "Sliding window attention - different memory profile"
 
   - id: llama3.1:8b-instruct-q4_K_M
     name: "Llama 3.1 8B Q4_K_M"
@@ -29,16 +52,44 @@ benchmark_models:
     quant: "Q4_K_M"
     bits: 4
     expected_vram_gb: 5.0
+    context_window: 32768  # Ollama default num_ctx (model trained for 131072)
     notes: "Well-documented, standard RAG benchmark reference"
 
-  - id: llama3.1:8b-instruct-q8_0
-    name: "Llama 3.1 8B Q8_0"
-    family: "Llama 3.1"
+  # Qwen2.5-Coder - coding specialist. Gives the HumanEval+ coding suite a
+  # real ceiling to compare the generalist models against.
+  - id: qwen2.5-coder:7b-instruct-q4_K_M
+    name: "Qwen2.5-Coder 7B Q4_K_M"
+    family: "Qwen2.5-Coder"
+    params_b: 7
+    quant: "Q4_K_M"
+    bits: 4
+    expected_vram_gb: 5.0
+    context_window: 32768  # = model's trained max (32768)
+    notes: "Coding specialist - reference ceiling for the HumanEval+ suite."
+
+  # DeepSeek-R1 distill - explicit <think> reasoning traces. Tests whether
+  # explicit reasoning improves RAG faithfulness/NIAH recall vs. the
+  # production model's hybrid thinking mode (Qwen 3).
+  - id: deepseek-r1:8b-llama-distill-q4_K_M
+    name: "DeepSeek-R1 8B (Llama distill) Q4_K_M"
+    family: "DeepSeek-R1"
     params_b: 8
-    quant: "Q8_0"
-    bits: 8
-    expected_vram_gb: 9.0
-    notes: "Near-lossless 8B - quality ceiling for this family"
+    quant: "Q4_K_M"
+    bits: 4
+    expected_vram_gb: 5.5
+    context_window: 32768  # Ollama default num_ctx (model trained for 131072)
+    notes: "Reasoning distill with <think> traces - contrast with Qwen 3 hybrid thinking."
+
+  # Gemma 4 12B (dense) - smaller sibling of the 26B MoE below
+  - id: gemma4:12b-it-q4_K_M
+    name: "Gemma 4 12B Q4_K_M"
+    family: "Gemma 4"
+    params_b: 12
+    quant: "Q4_K_M"
+    bits: 4
+    expected_vram_gb: 8.0
+    context_window: 32768  # Ollama default num_ctx (model trained for 262144)
+    notes: "Dense model - instruction-tuned. Vision + tool calling. 256K context."
 
   - id: phi4:14b-q4_K_M
     name: "Phi-4 14B Q4_K_M"
@@ -47,7 +98,18 @@ benchmark_models:
     quant: "Q4_K_M"
     bits: 4
     expected_vram_gb: 8.5
+    context_window: 16384  # = model's trained max (16384, below Ollama's 32768 default)
     notes: "Microsoft - strong instruction following and reasoning"
+
+  - id: llama3.1:8b-instruct-q8_0
+    name: "Llama 3.1 8B Q8_0"
+    family: "Llama 3.1"
+    params_b: 8
+    quant: "Q8_0"
+    bits: 8
+    expected_vram_gb: 9.0
+    context_window: 32768  # Ollama default num_ctx (model trained for 131072)
+    notes: "Near-lossless 8B - quality ceiling for this family"
 
   - id: qwen3:14b-q4_K_M
     name: "Qwen 3 14B Q4_K_M"
@@ -56,23 +118,13 @@ benchmark_models:
     quant: "Q4_K_M"
     bits: 4
     expected_vram_gb: 9.0
+    context_window: 32768  # Ollama default num_ctx (model trained for 40960)
     notes: "Production model - hybrid thinking/non-thinking modes, better reasoning than Qwen 2.5"
-
-  # qwen3:14b-q5_K_M tag does not exist on Ollama (verified May 2026).
-  # Replaced with Qwen 3 30B Q4_K_M as the quality ceiling for the Qwen family.
-  # Pull with: ollama pull qwen3:30b-q4_K_M (~18GB, fits in 16GB VRAM at Q4)
-  # SKIP for now — focus benchmark on models already pulled.
-  # - id: qwen3:30b-q4_K_M
-  #   name: "Qwen 3 30B Q4_K_M"
-  #   family: "Qwen 3"
-  #   params_b: 30
-  #   quant: "Q4_K_M"
-  #   bits: 4
-  #   expected_vram_gb: 18.0
-  #   notes: "Quality ceiling - larger Qwen 3 for quality comparison vs 14B"
 
   # Gemma 4 (Google, April 2026) - MoE: 4B active / 26B total parameters
   # Tag confirmed from ollama.com/library/gemma4 — instruction-tuned, Q4_K_M
+  # Largest/riskiest model in the matrix - kept last so a crash here doesn't
+  # block the rest of the run.
   - id: gemma4:26b-a4b-it-q4_K_M
     name: "Gemma 4 26B (A4B) Q4_K_M"
     family: "Gemma 4"
@@ -82,16 +134,8 @@ benchmark_models:
     bits: 4
     expected_vram_gb: 14.0  # fits in 16GB; ~18GB GGUF file, ~14-16GB runtime
     moe: true
+    context_window: 32768  # Ollama default num_ctx (model trained for 262144)
     notes: "MoE - 4B active params, 26B total. Instruction-tuned. Fits 16GB VRAM at Q4_K_M. Vision + tool calling."
-
-  - id: mistral:7b-instruct-v0.3-q4_K_M
-    name: "Mistral 7B v0.3 Q4_K_M"
-    family: "Mistral"
-    params_b: 7
-    quant: "Q4_K_M"
-    bits: 4
-    expected_vram_gb: 4.5
-    notes: "Sliding window attention - different memory profile"
 
 # Query categories used in the benchmark
 # Each category tests a different retrieval challenge

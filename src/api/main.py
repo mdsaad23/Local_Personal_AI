@@ -20,6 +20,14 @@ from fastapi.responses import FileResponse
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# On this machine, the local WMI service hangs indefinitely on Win32_OperatingSystem
+# queries. Python 3.12's platform.uname()/win32_ver() calls into WMI via the _wmi
+# module, and pandas (imported transitively by lancedb -> pyarrow) calls
+# platform.machine() at import time, which deadlocks the whole startup. Forcing
+# _wmi_query to fail makes platform.py fall back to its non-WMI implementation.
+import platform
+platform._wmi_query = lambda *a, **k: (_ for _ in ()).throw(OSError("WMI disabled: hangs on this host"))
+
 # Verify that the server is running inside the correct virtual environment and has critical RAG libraries
 try:
     import docling

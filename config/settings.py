@@ -93,7 +93,10 @@ NEEDLE_DIR          = ROOT_DIR / "vendor" / "local_llm_benchmarking"
 # 100K+ context are intentionally excluded.
 NEEDLE_CORPORA      = [c.strip() for c in
                        os.getenv("NEEDLE_CORPORA", "http_server").split(",") if c.strip()]
-NEEDLE_MAX_TOKENS   = int(os.getenv("NEEDLE_MAX_TOKENS", "6000"))
+# Fallback when a model in models.yaml has no context_window set. Per-model
+# runs use that model's context_window instead (see config/models.yaml) so
+# reasoning models have their full context budget for <think> + answer.
+NEEDLE_MAX_TOKENS   = int(os.getenv("NEEDLE_MAX_TOKENS", "32768"))
 NEEDLE_TIMEOUT_SEC  = float(os.getenv("NEEDLE_TIMEOUT_SEC", "600"))
 
 # ── Supported file types ───────────────────────────────────────────────────────
