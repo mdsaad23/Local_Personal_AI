@@ -1,4 +1,4 @@
-# Local AI Personal Assistant (P04A)
+# Local AI Personal Assistant
 
 A **fully offline** personal knowledge base and AI assistant. Drop your documents in, ask
 questions, and get answers grounded in your own files — with **zero cloud calls for
